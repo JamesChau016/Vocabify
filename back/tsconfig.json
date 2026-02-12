@@ -7,7 +7,7 @@
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
-    "module": "nodenext",
+    "module": "ESnext",
     "target": "esnext",
     "types": [],
     // For nodejs:
@@ -35,6 +35,7 @@
     // Recommended Options
     "strict": true,
     "jsx": "react-jsx",
+    "moduleResolution": "Node",
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
