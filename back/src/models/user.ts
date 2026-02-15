@@ -1,6 +1,6 @@
-import mongoose from 'mongoose'
+import mongoose, { Schema } from 'mongoose'
 
-const userSchema = new mongoose.Schema({
+const userSchema = new Schema({
     username: {
         type: String,
         minLength: 3,
@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
 
 
 userSchema.set('toJSON', {
-    transform: (document, obj) => {
+    transform: (document, obj: any) => {
         obj.id = obj._id.toString()
         delete obj._id;
         delete obj.__v;

@@ -1,6 +1,7 @@
 import express from 'express'
 import mongoose from 'mongoose'
 import usersRouter from './controllers/users'
+import loginRouter from './controllers/login'
 import "dotenv/config"
 
 const app = express()
@@ -18,5 +19,6 @@ mongoose.connect(process.env.MONGODB_URI!, { family: 4 })
     })
 
 app.use("/api/users", usersRouter)
+app.use("/api/login", loginRouter)
 
 export default app
