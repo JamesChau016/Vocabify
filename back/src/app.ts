@@ -3,10 +3,12 @@ import mongoose from 'mongoose'
 import usersRouter from './controllers/users'
 import loginRouter from './controllers/login'
 import "dotenv/config"
+import cors from "cors"
 
 const app = express()
 
 app.use(express.json())
+app.use(cors())
 
 mongoose.set('strictQuery', false)
 
