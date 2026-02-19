@@ -9,6 +9,12 @@ const userSchema = new mongoose.Schema({
     },
     name: String,
     passwordHash: String,
+    lists: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'VocabList'
+        }
+    ]
 })
 
 

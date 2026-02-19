@@ -2,6 +2,7 @@ import express from 'express'
 import mongoose from 'mongoose'
 import usersRouter from './controllers/users'
 import loginRouter from './controllers/login'
+import listRouter from './controllers/list'
 import "dotenv/config"
 import cors from "cors"
 
@@ -22,5 +23,6 @@ mongoose.connect(process.env.MONGODB_URI!, { family: 4 })
 
 app.use("/api/users", usersRouter)
 app.use("/api/login", loginRouter)
+app.use("/api/lists", listRouter)
 
 export default app

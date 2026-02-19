@@ -2,6 +2,13 @@ import mongoose from "mongoose"
 
 const listSchema = new mongoose.Schema({
     name: String,
+    author: String,
+    dateCreated: String,
+    amountWords: {
+        type: Number,
+        min:0
+    },
+    list: [String],
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
