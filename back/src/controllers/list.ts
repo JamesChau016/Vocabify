@@ -3,6 +3,7 @@ import "dotenv/config"
 import jwt from 'jsonwebtoken'
 import VocabList from "../models/vocabList"
 import User from "../models/user"
+import Word from '../models/word'
 
 
 const listRouter = express.Router()
@@ -50,6 +51,20 @@ listRouter.post('/', async (request, response) => {
     const savedList = await newList.save()
     user.lists = user.lists.concat(savedList._id)
     await user.save()
+    response.status(201).json(savedList)
+})
+
+listRouter.post('/:id/words', async (request, response) => {
+    const words = new Word(request.body)
+    const list = await VocabList.findById(request.params.id)
+
+    if (!list) {
+        return response.status(404).end()
+    }
+
+    await list.list.push(words)
+    const savedList = await list.save()
+
     response.status(201).json(savedList)
 })
 

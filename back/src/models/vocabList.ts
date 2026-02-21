@@ -3,12 +3,18 @@ import mongoose from "mongoose"
 const listSchema = new mongoose.Schema({
     name: String,
     author: String,
-    dateCreated: String,
+    dateCreated: {
+        type: Date,
+        default: Date.now
+    },
     amountWords: {
         type: Number,
         min:0
     },
-    list: [String],
+    list: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Word'
+    }],
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
