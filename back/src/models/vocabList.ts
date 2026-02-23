@@ -1,8 +1,9 @@
 import mongoose from "mongoose"
 
 const listSchema = new mongoose.Schema({
-    name: String,
+    name: {type: String, require: true},
     author: String,
+    description: String,
     dateCreated: {
         type: Date,
         default: Date.now

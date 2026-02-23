@@ -32,7 +32,6 @@ listRouter.get('/:id', async (request, response) => {
 })
 
 listRouter.post('/', async (request, response) => {
-    const newList = new VocabList(request.body)
     const decodedToken = jwt.verify(request.token, process.env.SECRET!)
 
     if (!decodedToken.id) {
@@ -44,6 +43,8 @@ listRouter.post('/', async (request, response) => {
     if (!user) {
         return response.status(400).json({error: 'userId not found or invalid'})
     }
+
+    const newList = new VocabList({...request.body, author: user.name})
 
     newList.user = user._id
     const savedList = await newList.save()
