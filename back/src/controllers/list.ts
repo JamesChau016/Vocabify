@@ -65,8 +65,9 @@ listRouter.post('/:id/words', async (request, response) => {
     }
 
     const savedWords = await Word.insertMany(words)
+    const idList = savedWords.map((w) => w._id)
 
-    list.list.push(savedWords.map(w => w._id))
+    list.list.push(...idList)
     const savedList = await list.save()
 
     response.status(201).json(savedList)
