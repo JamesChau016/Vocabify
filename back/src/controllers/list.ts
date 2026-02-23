@@ -14,7 +14,7 @@ listRouter.get('/', async (request, response) => {
         .populate("user", { username: 1, name: 1 })
         .populate({
             path: 'fullList',
-            select: 'term definition',
+            select: 'term definition -_id -listId',
             options: { lean: true }
         })
 

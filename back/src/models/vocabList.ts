@@ -35,6 +35,7 @@ listSchema.set('toJSON', {
     transform: (document, obj: any) => {
         delete obj.__v
         delete obj._id
+        delete obj.list
     }
 })
 
