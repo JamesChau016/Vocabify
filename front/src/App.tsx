@@ -1,6 +1,7 @@
 import { useState } from "react";
 import LoginPage from './components/login/LoginPage' 
 import Landing from './components/landing/Landing'
+import Home from './components/home/Home'
 
 export interface User {
   token: string;
@@ -13,13 +14,19 @@ const App = () => {
 
   if (user){
     return (
-      <Landing/>
-    )
+      <>
+        <Landing />
+        <Home user={user.name} />
+      </>
+    );
   }
 
   return (
-    <LoginPage setUser={setUser}/>
-  )
+    <>
+      <Landing />
+      <LoginPage setUser={setUser} />
+    </>
+  );
 }
 
 export default App
