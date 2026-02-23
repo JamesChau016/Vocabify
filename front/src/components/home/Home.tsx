@@ -32,7 +32,7 @@ const Home = ({ user }) => {
 
     return (
         <>
-            <h1>Welcome {user}!</h1>
+            <h1>Welcome {user.name}!</h1>
             <ol>
                 {lists.map((l) => (
                     <li key={l.id}>{l.name}</li>

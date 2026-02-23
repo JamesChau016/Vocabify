@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Routes, Route } from 'react-router-dom'
 import LoginPage from './components/login/LoginPage' 
 import Landing from './components/landing/Landing'
 import Home from './components/home/Home'
@@ -12,19 +13,14 @@ export interface User {
 const App = () => {
   const [ user, setUser ] = useState<User|null>(null)
 
-  if (user){
-    return (
-      <>
-        <Landing />
-        <Home user={user.name} />
-      </>
-    );
-  }
 
   return (
     <>
-      <Landing />
-      <LoginPage setUser={setUser} />
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<LoginPage setUser={setUser} />} />
+        <Route path="/home" element={<Home user={user} />} />
+      </Routes>
     </>
   );
 }
