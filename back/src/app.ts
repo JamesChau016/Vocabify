@@ -6,10 +6,19 @@ import listRouter from './controllers/list'
 import "dotenv/config"
 import cors from "cors"
 
+const tokenExtractor = (request: express.Request, response: express.Response, next: express.Next ) => {
+    const authorization = request.get('authorization')
+    if (authorization && authorization.startsWith('Bearer ')){
+        request.token = authorization.replace('Bearer ', '')
+    }
+    next()
+}
+
 const app = express()
 
 app.use(express.json())
 app.use(cors())
+app.use(tokenExtractor)
 
 mongoose.set('strictQuery', false)
 

@@ -1,13 +1,25 @@
 import mongoose from "mongoose"
 
-const wordSchema = new mongoose.Schema({
-    content: { type: String, require: true },
-    definition: String
-})
+const wordSchema = new mongoose.Schema(
+  {
+    term: { type: String, require: true },
+    definition: String,
+    listId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "VocabList",
+      require: true,
+    },
+  },
+  {
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  },
+);
 
 wordSchema.set('toJSON', {
+    virtuals: true,
     transform: (document, obj: any) => {
-        obj.id = obj._id.toString()
+        delete obj.__v
         delete obj._id
     }
 })

@@ -19,11 +19,21 @@ const listSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     }
+}, {
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+})
+
+listSchema.virtual('fullList', {
+    ref: 'Word',
+    localField: '_id',
+    foreignField: 'listId'
 })
 
 listSchema.set('toJSON', {
+    virtuals: true,
     transform: (document, obj: any) => {
-        obj.id = obj._id.toString()
+        delete obj.__v
         delete obj._id
     }
 })

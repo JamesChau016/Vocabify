@@ -8,18 +8,16 @@ import Word from '../models/word'
 
 const listRouter = express.Router()
 
-const tokenExtractor = (request: express.Request, response: express.Response, next: express.Next ) => {
-    const authorization = request.get('authorization')
-    if (authorization && authorization.startsWith('Bearer ')){
-        request.token = authorization.replace('Bearer ', '')
-    }
-    next()
-}
-
-listRouter.use(tokenExtractor)
 
 listRouter.get('/', async (request, response) => {
     const result = await VocabList.find({})
+        .populate("user", { username: 1, name: 1 })
+        .populate({
+            path: 'fullList',
+            select: 'term definition',
+            options: { lean: true }
+        })
+
     response.json(result)
 })
 
@@ -37,7 +35,7 @@ listRouter.post('/', async (request, response) => {
     const newList = new VocabList(request.body)
     const decodedToken = jwt.verify(request.token, process.env.SECRET!)
 
-    if (!decodedToken) {
+    if (!decodedToken.id) {
         return response.status(401).json({error: 'token invalid'})
     }
 
@@ -55,14 +53,20 @@ listRouter.post('/', async (request, response) => {
 })
 
 listRouter.post('/:id/words', async (request, response) => {
-    const words = new Word(request.body)
-    const list = await VocabList.findById(request.params.id)
-
+    const list = await VocabList.findById(request.params.id);
     if (!list) {
-        return response.status(404).end()
+      return response.status(404).end();
     }
 
-    await list.list.push(words)
+    const words = []
+    for (const i of request.body) {
+        const word = new Word({...i, listId: list._id})
+        words.push(word)
+    }
+
+    const savedWords = await Word.insertMany(words)
+
+    list.list.push(savedWords.map(w => w._id))
     const savedList = await list.save()
 
     response.status(201).json(savedList)
