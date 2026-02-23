@@ -2,12 +2,18 @@ import { useState, useEffect } from 'react'
 import type { User } from '../../App'
 import services from '../../services/list'
 
-interface List {
+export interface List {
     id: string,
     name: string,
     description?: string,
     dateCreated: Date,
     user: User
+}
+
+export interface Word {
+    id: string,
+    term: string,
+    definition: string
 }
 
 const Home = ({ user }) => {
