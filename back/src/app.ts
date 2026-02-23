@@ -6,7 +6,7 @@ import listRouter from './controllers/list'
 import "dotenv/config"
 import cors from "cors"
 
-const tokenExtractor = (request: express.Request, response: express.Response, next: express.Next ) => {
+const tokenExtractor = (request: express.Request, response: express.Response, next: express.NextFunction) => {
     const authorization = request.get('authorization')
     if (authorization && authorization.startsWith('Bearer ')){
         request.token = authorization.replace('Bearer ', '')
