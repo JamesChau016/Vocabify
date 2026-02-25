@@ -74,7 +74,35 @@ listRouter.post('/:id/words', async (request, response) => {
     response.status(201).json(savedList)
 })
 
-listRouter.put('/:id', async (request, response) => {
+listRouter.delete('/:id', async (request, response) => {
+    const decodedToken = jwt.verify(request.token, process.env.SECRET!)
+
+    if (!decodedToken.id){
+        return response.status(401).json({error: 'token invalid'})
+    }
+
+    const user = await User.findById(decodedToken.id)
+
+    if (!user){
+        return response
+          .status(400)
+          .json({ error: "userId not found or invalid" });
+    }
+
+    const list = await VocabList.findById(request.params.id)
+
+    if (!list){
+        return response.status(404).end()
+    }
+
+    if (list.user?.toString() === user.id.toString()){
+        await VocabList.findByIdAndDelete(request.params.id)
+        await Word.deleteMany({listId: list.id})
+        response.status(204).end()
+    }
+    else{
+        response.status(401).json({error: 'You are not allowed to delete this list.'})
+    }
 
 })
 
