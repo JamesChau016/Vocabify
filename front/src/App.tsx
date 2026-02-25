@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { Routes, Route } from 'react-router-dom'
 import LoginPage from './components/login/LoginPage' 
 import Landing from './components/landing/Landing'
+import Home from './components/home/Home'
 
 export interface User {
   token: string;
@@ -11,15 +13,16 @@ export interface User {
 const App = () => {
   const [ user, setUser ] = useState<User|null>(null)
 
-  if (user){
-    return (
-      <Landing/>
-    )
-  }
 
   return (
-    <LoginPage setUser={setUser}/>
-  )
+    <>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<LoginPage setUser={setUser} />} />
+        <Route path="/home" element={<Home user={user} />} />
+      </Routes>
+    </>
+  );
 }
 
 export default App

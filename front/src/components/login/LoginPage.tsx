@@ -2,6 +2,7 @@ import { useState, type SetStateAction } from 'react'
 import type { Dispatch } from 'react'
 import type { User } from '../../App'
 import services from '../../services/login'
+import Header from '../header/Header'
 
 type UserProps = {
     setUser: Dispatch<SetStateAction<User | null>>
@@ -20,6 +21,7 @@ const LoginPage = ( props: UserProps ) => {
 
     return (
       <>
+        <Header/>
         <h1>Login</h1>
         <form onSubmit={handleSubmit}>
           <label>
