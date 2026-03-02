@@ -2,7 +2,7 @@ import axios from "axios"
 
 const baseUrl = "http://localhost:3006/api/login";
 
-interface Credential {
+export interface Credential {
     username: string,
     password: string
 }

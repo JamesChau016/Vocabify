@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useSelector } from 'react-redux'
 import type { User } from '../../App'
 import services from '../../services/list'
+import ListForm from './ListForm'
 
 export interface List {
     id: string,
@@ -16,8 +18,9 @@ export interface Word {
     definition: string
 }
 
-const Home = ({ user }) => {
+const Home = () => {
     const [ lists, setLists ] = useState<List[]>([])
+    const { currentUser } = useSelector(state => state.user)
 
     useEffect(() => {
         services.getAll().then(data => setLists(data))
@@ -29,17 +32,24 @@ const Home = ({ user }) => {
             <div>failed to fetch list</div>
         )
     }
+    else if (!currentUser){
+        console.log(currentUser);
+        return(
+            <div>please log in first</div>
+        )
+    }
 
     return (
-        <>
-            <h1>Welcome {user.name}!</h1>
-            <ol>
-                {lists.map((l) => (
-                    <li key={l.id}>{l.name}</li>
-                ))}
-            </ol>
-        </>
-    )
+      <>
+        <h1>Welcome {currentUser.name}!</h1>
+        <ListForm />
+        <ol>
+          {lists.map((l) => (
+            <li key={l.id}>{l.name}</li>
+          ))}
+        </ol>
+      </>
+    );
 }
 
 export default Home
