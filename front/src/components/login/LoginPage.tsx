@@ -1,15 +1,10 @@
-import { useState, type SetStateAction } from "react";
-import type { Dispatch } from "react";
-import type { User } from "../../App";
+import { useState } from "react";
 import { useDispatch } from "react-redux";
-import type { AppDispatch } from "../../store";
 import Header from "../header/Header";
 import { useNavigate } from "react-router-dom";
 import { login } from "../../reducers/userReducer";
+import type { AppDispatch } from "../../main";
 
-type UserProps = {
-  setUser: Dispatch<SetStateAction<User | null>>;
-};
 
 const LoginPage = () => {
   const navigate = useNavigate();

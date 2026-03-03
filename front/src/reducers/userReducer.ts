@@ -58,4 +58,11 @@ export const login = (info: Credential) => {
     }
 }
 
+export const logout = () => {
+    return async (dispatch) => {
+        await window.localStorage.clear()
+        dispatch(setUser(null))
+    }
+}
+
 export default userSlice.reducer

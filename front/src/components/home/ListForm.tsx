@@ -1,8 +1,12 @@
 import { useState } from 'react'
-import services from '../../services/list'
+import { addList } from '../../reducers/listReducer'
+import type { AppDispatch } from '../../main'
+import { useDispatch, useSelector } from 'react-redux'
 
 
 const ListForm = () => {
+    const dispatch = useDispatch<AppDispatch>()
+    const user = useSelector(state => state.currentUser)
     const [name, setName] = useState('')
     const [description, setDescription] = useState('')
 
@@ -12,7 +16,7 @@ const ListForm = () => {
         name: name,
         description: description,
       };
-      await services.createList(list);
+      dispatch(addList(list, user))
     };
     return(
         <>

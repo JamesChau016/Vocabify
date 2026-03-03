@@ -5,14 +5,17 @@ import { Provider } from 'react-redux'
 import App from './App'
 
 import userReducer from './reducers/userReducer'
+import listReducer from './reducers/listReducer'
 
 
 const store = configureStore({
   reducer: {
-    user: userReducer
+    user: userReducer,
+    list: listReducer
   }
 })
 
+export type AppDispatch = typeof store.dispatch
 
 createRoot(document.getElementById("root")!).render(
     <Provider store={store}>

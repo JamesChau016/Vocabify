@@ -1,7 +1,12 @@
+import { useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import LoginPage from './components/login/LoginPage' 
 import Landing from './components/landing/Landing'
 import Home from './components/home/Home'
+import { useDispatch } from 'react-redux'
+import { initializeLists } from './reducers/listReducer'
+import { getUser } from './reducers/userReducer'
+import type { AppDispatch } from "./main";
 
 export interface User {
   token: string;
@@ -10,6 +15,12 @@ export interface User {
 }
 
 const App = () => {
+  const dispatch = useDispatch<AppDispatch>()
+
+  useEffect(() => {
+    dispatch(initializeLists())
+    dispatch(getUser())
+  },[dispatch])
 
 
   return (

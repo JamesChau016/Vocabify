@@ -3,7 +3,7 @@ import type { Word } from '../components/home/Home'
 
 const baseUrl = "http://localhost:3006/api/lists"
 
-interface List {
+export interface List {
   name: string
   description: string | null
 }
