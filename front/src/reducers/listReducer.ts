@@ -16,10 +16,16 @@ const listSlice = createSlice({
       const content = action.payload;
       state.push(content);
     },
+    addWordList(state, action) {
+      const { id, words } = action.payload
+      const list = state.find(l => l.id === id)
+      const addedWords = {...list, list: list.list.push(words)}
+      state.map(l => (l.id === id ? addedWords : list))
+    }
   },
 });
 
-const {setList, createList} = listSlice.actions
+const {setList, createList, addWordList} = listSlice.actions
 
 export const initializeLists = () => {
     return async (dispatch) => {
@@ -33,6 +39,14 @@ export const addList = (list: List, user: User) => {
         const createdList = await listServices.createList(list)
         const listWithUser = {...createdList, user: user}
         dispatch(createList(listWithUser))
+    }
+}
+
+export const addWord = (id, words) => {
+    return async (dispatch) => {
+      const content = words.content
+      await listServices.newWords(id, content)
+      dispatch(addWordList({id, content}))
     }
 }
 

@@ -1,4 +1,5 @@
 import { useSelector } from 'react-redux'
+import { Link } from 'react-router-dom'
 import type { User } from '../../App'
 import ListForm from './ListForm'
 import Header from '../header/Header'
@@ -23,12 +24,12 @@ const Home = () => {
     const { currentUser } = useSelector(state => state.user)
 
     if (!lists){
+      
         return(
             <div>failed to fetch list</div>
         )
     }
     if (!currentUser){
-        console.log(currentUser)
         return (
           <div>
             <Header />
@@ -39,12 +40,16 @@ const Home = () => {
 
     return (
       <>
-        <Header/>
+        <Header />
         <h1>Welcome {currentUser.name}!</h1>
         <ListForm />
         <ol>
-          {lists?.map((l) => (
-            <li key={l.id}>{l.name} - {l.author}</li>
+          {lists?.map((l: List) => (
+            <li key={l.id}>
+              <Link to={`lists/${l.id}`}>
+                {l.name} - {l.author}
+              </Link>
+            </li>
           ))}
         </ol>
       </>

@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 import LoginPage from './components/login/LoginPage' 
 import Landing from './components/landing/Landing'
 import Home from './components/home/Home'
+import ListDetail from './components/listdetail/ListDetail'
 import { useDispatch } from 'react-redux'
 import { initializeLists } from './reducers/listReducer'
 import { getUser } from './reducers/userReducer'
@@ -29,6 +30,7 @@ const App = () => {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/home" element={<Home />} />
+        <Route path="/home/lists/:id" element={<ListDetail/>}/>
       </Routes>
     </>
   );
