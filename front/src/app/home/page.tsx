@@ -1,0 +1,103 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
+import Header from "@/components/Header";
+import ListForm from "@/components/ListForm";
+import listService from "@/services/list";
+import type { List } from "@/types";
+import styles from "./page.module.css";
+
+export default function HomePage() {
+  const { currentUser } = useAuth();
+  const [lists, setLists] = useState<List[]>([]);
+
+  useEffect(() => {
+    listService.getAll().then(setLists);
+  }, []);
+
+  const handleListCreated = (newList: List) => {
+    setLists((prev) => [...prev, { ...newList, user: currentUser! }]);
+  };
+
+  if (!currentUser) {
+    return (
+      <>
+        <Header />
+        <main className="flex flex-col items-center justify-center min-h-[70vh] px-8">
+          <div className={`${styles.container} text-center`}>
+            <p className="font-serif text-2xl text-ink-light mb-6">
+              Please sign in to view your lists
+            </p>
+            <Link
+              href="/login"
+              className="inline-block bg-ink text-cream text-sm font-medium tracking-widest uppercase px-8 py-3 no-underline hover:bg-accent transition-colors duration-200"
+            >
+              Sign In
+            </Link>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Header />
+      <main className="px-8 py-12">
+        {/* Welcome */}
+        <div className={styles.welcome}>
+          <h1 className="font-serif text-4xl font-bold text-ink mb-1">
+            Hello, {currentUser.name}
+          </h1>
+          <p className="text-sm text-ink-muted mb-10">
+            Your vocabulary lists
+          </p>
+        </div>
+
+        {/* Create form */}
+        <div className={`${styles.formSection} mb-12`}>
+          <ListForm onCreated={handleListCreated} />
+        </div>
+
+        {/* Lists */}
+        <div className={styles.listSection}>
+          {lists.length === 0 ? (
+            <div className={`${styles.emptyState} text-center py-16`}>
+              <p className="text-ink-muted text-sm">
+                No lists yet. Create your first one above.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-0">
+              {lists.map((l) => (
+                <div
+                  key={l.id}
+                  className={`${styles.listItem} border-b border-border py-5`}
+                >
+                  <Link
+                    href={`/home/lists/${l.id}`}
+                    className={`${styles.listLink} flex items-baseline justify-between no-underline text-ink`}
+                  >
+                    <span className="font-serif text-xl font-semibold">
+                      {l.name}
+                    </span>
+                    <span className="text-xs text-ink-muted tracking-wide uppercase">
+                      {l.author}
+                    </span>
+                  </Link>
+                  {l.description && (
+                    <p className="text-sm text-ink-light mt-1">
+                      {l.description}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+    </>
+  );
+}

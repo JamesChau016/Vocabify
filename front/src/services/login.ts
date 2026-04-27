@@ -1,15 +1,11 @@
-import axios from "axios"
+import axios from "axios";
+import type { Credential } from "@/types";
 
-const baseUrl = "http://localhost:3006/api/login";
-
-export interface Credential {
-    username: string,
-    password: string
-}
+const baseUrl = "/api/login";
 
 const login = async (creds: Credential) => {
-    const response = await axios.post(baseUrl, creds)
-    return response.data
-}
+  const response = await axios.post(baseUrl, creds);
+  return response.data;
+};
 
-export default { login }
+export default { login };
