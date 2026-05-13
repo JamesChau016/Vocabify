@@ -56,7 +56,7 @@ docker compose ps          # Check running containers
 ## Project Structure
 
 ```
-back-dotnet/
+back/
 ├── docker-compose.yml            # PostgreSQL + Redis containers
 ├── appsettings.json              # Connection strings, JWT config, port
 ├── Program.cs                    # App entry, DI, middleware pipeline
@@ -107,7 +107,7 @@ Cascade deletes: deleting a user removes their lists; deleting a list removes it
 | `GET` | `/api/lists` | No | All lists (with user + words) |
 | `GET` | `/api/lists/{id}` | No | Single list by ID |
 | `POST` | `/api/lists` | Yes | Create new list |
-| `POST` | `/api/lists/{id}/words` | No | Add words to a list |
+| `POST` | `/api/lists/{id}/words` | Yes | Add words to a list (owner only) |
 | `DELETE` | `/api/lists/{id}` | Yes | Delete list (owner only) |
 
 ### Authentication

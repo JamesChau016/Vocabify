@@ -33,6 +33,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+// Singleton: TokenService is stateless and has no scoped deps, so one shared instance is fine.
+// Heads-up: do NOT inject Scoped services (e.g. AppDbContext) into anything Singleton here —
+// the DI container will throw at request time ("Cannot consume scoped service ... from singleton"),
+// because a Singleton outlives the request scope its dependency was tied to. This is the
+// "captive dependency" footgun. Business-logic services that touch the DbContext should be
+// AddScoped<T>() instead.
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddControllers();
 builder.Services.AddCors();

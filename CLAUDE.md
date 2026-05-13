@@ -16,11 +16,11 @@ This is a **learning project** for the maintainer (target: Applied AI Backend En
 
 Modular monolith. Three deployable artifacts:
 
-- `back-dotnet/` — ASP.NET Core 8 Web API (the system of record + AI orchestration)
+- `back/` — ASP.NET Core 8 Web API (the system of record + AI orchestration)
 - `front/` — Next.js 15 PWA, proxies `/api/*` to the backend
 - `extension/` — Chrome MV3 extension (Vite + React), talks to the backend over HTTPS
 
-Data layer: PostgreSQL 17 with the **pgvector** extension (primary + vector search), Redis 7 (cache/sessions). Both run via `docker compose` from `back-dotnet/`.
+Data layer: PostgreSQL 17 with the **pgvector** extension (primary + vector search), Redis 7 (cache/sessions). Both run via `docker compose` from `back/`.
 
 Auth is JWT Bearer. Tokens are issued by `POST /api/login` and used by both the web app and the extension.
 
@@ -51,7 +51,7 @@ Mobile is a stated competitive edge against Vocabulary.com. Treat it as a non-ne
 
 ## Conventions
 
-- **Backend:** Controllers stay thin. Business logic goes in services under `back-dotnet/Services/`. EF Core is the only data access path — no raw SQL unless there's a measured perf reason. DTOs in `DTOs/` are the wire contract; never expose EF entities directly from a controller.
+- **Backend:** Controllers stay thin. **Business logic goes in services under `back/Services/`** — even single-method services. The "no premature abstraction" rule below targets Repository/CQRS-style meta-patterns, not basic per-resource service classes; those are the convention from day one. The existing controllers (`ListsController` et al.) still inline `AppDbContext` access — that's legacy from before this convention, not a pattern to copy. New endpoints get a service; migrating the legacy handlers is a separate task. EF Core is the only data access path — no raw SQL unless there's a measured perf reason. DTOs in `DTOs/` are the wire contract; never expose EF entities directly from a controller.
 - **Frontend:** Server components by default in Next.js App Router. Client components only when you need state, effects, or browser APIs — mark them with `"use client"` and keep them small. API calls go through `src/services/`, never directly from components.
 - **Types:** Shared shapes live in `front/src/types.ts`. Backend DTOs are the source of truth; frontend types should mirror them.
 - **Naming:** PascalCase for C# (.cs), camelCase for TS, kebab-case for routes and folders inside `app/`.
@@ -60,7 +60,7 @@ Mobile is a stated competitive edge against Vocabulary.com. Treat it as a non-ne
 ## Common Commands
 
 ```bash
-# Backend (run from back-dotnet/)
+# Backend (run from back/)
 docker compose up -d             # start Postgres (with pgvector) + Redis
 docker compose down -v           # nuke local data
 dotnet ef database update        # apply migrations
@@ -101,7 +101,7 @@ Cascade deletes: deleting a user wipes their lists; deleting a list wipes its wo
 
 ## API Surface
 
-See `back-dotnet/README.md` for the current endpoint list. When adding endpoints:
+See `back/README.md` for the current endpoint list. When adding endpoints:
 
 1. Define the DTO in `DTOs/` first.
 2. Add a service method (don't put logic in the controller).
@@ -114,7 +114,7 @@ Authorization: routes that mutate user-owned resources (lists, words, reviews) c
 
 - **No localStorage/sessionStorage in shared code paths** that might run in artifacts or SSR contexts. Use cookies (HTTP-only for tokens once we move off the current setup) or in-memory state.
 - **No new dependencies without justification.** Especially on the backend — .NET's stdlib is broad. Mention the alternative you considered.
-- **No premature abstraction.** Repository pattern, CQRS, MediatR — none of these earn their keep yet. Add them when there's a concrete second use case, not before.
+- **No premature abstraction.** Repository pattern, CQRS, MediatR, and similar meta-patterns — none of these earn their keep yet. Add them when there's a concrete second use case, not before. This rule is about higher-order abstractions; it does *not* apply to basic per-resource service classes under `back/Services/` (see Conventions above), which exist from the first endpoint that touches a resource.
 - **No Python until Phase 4 finishes the C# version first.** The point is to ship the C# AI layer; a Python sidecar comes later, for comparison and where genuinely needed.
 - **No microservices proposals.**
 - **No desktop-first UI.** If a layout would break at 360px, it's wrong.
