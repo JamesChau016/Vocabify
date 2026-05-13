@@ -1,3 +1,7 @@
 .env
 
 ROADMAP.md
+
+# Skill-creator build/eval artefacts (the skill itself stays tracked)
+.claude/skills/*-workspace/
+.claude/skills/dist/
