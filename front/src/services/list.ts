@@ -14,6 +14,12 @@ const getAll = async () => {
   return response.data;
 };
 
+const getById = async (id: string) => {
+  const url = `${baseUrl}/${id}`;
+  const response = await axios.get(url);
+  return response.data;
+};
+
 const createList = async (list: { name: string; description: string }) => {
   const config = {
     headers: { Authorization: token },
@@ -31,4 +37,33 @@ const newWords = async (id: string, words: Array<Word>) => {
   return response.data;
 };
 
-export default { setToken, getAll, createList, newWords };
+const update = async (
+  id: string,
+  list: { name: string; description?: string }
+) => {
+  const config = {
+    headers: { Authorization: token },
+  };
+  const url = `${baseUrl}/${id}`;
+  const response = await axios.put(url, list, config);
+  return response.data;
+};
+
+const remove = async (id: string) => {
+  const config = {
+    headers: { Authorization: token },
+  };
+  const url = `${baseUrl}/${id}`;
+  const response = await axios.delete(url, config);
+  return response.data;
+};
+
+export default {
+  setToken,
+  getAll,
+  getById,
+  createList,
+  newWords,
+  update,
+  remove,
+};

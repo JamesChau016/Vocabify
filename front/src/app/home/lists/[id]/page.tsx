@@ -1,27 +1,42 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
+import AddWordsForm from "@/components/AddWordsForm";
+import EditListForm from "@/components/EditListForm";
+import DeleteListControl from "@/components/DeleteListControl";
+import StudySession from "@/components/StudySession";
 import listService from "@/services/list";
+import { useAuth } from "@/context/AuthContext";
 import type { List } from "@/types";
 import styles from "./page.module.css";
 
 export default function ListDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const { currentUser } = useAuth();
   const [list, setList] = useState<List | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<"loading" | "loaded" | "not-found">(
+    "loading"
+  );
 
   useEffect(() => {
-    listService.getAll().then((lists: List[]) => {
-      const found = lists.find((l) => l.id === id) ?? null;
-      setList(found);
-      setLoading(false);
-    });
+    setStatus("loading");
+    listService
+      .getById(id)
+      .then((found: List) => {
+        setList(found);
+        setStatus("loaded");
+      })
+      .catch(() => {
+        setList(null);
+        setStatus("not-found");
+      });
   }, [id]);
 
-  if (loading) {
+  if (status === "loading") {
     return (
       <>
         <Header />
@@ -34,7 +49,7 @@ export default function ListDetailPage() {
     );
   }
 
-  if (!list) {
+  if (status === "not-found" || !list) {
     return (
       <>
         <Header />
@@ -52,6 +67,10 @@ export default function ListDetailPage() {
       </>
     );
   }
+
+  const isOwner = Boolean(
+    currentUser && list.user && currentUser.username === list.user.username
+  );
 
   return (
     <>
@@ -113,12 +132,68 @@ export default function ListDetailPage() {
                         <span className="font-serif text-lg font-semibold text-ink">
                           {word.term}
                         </span>
-                        <span className="text-sm text-ink-light ml-6">
-                          {word.definition}
-                        </span>
+                        {word.definition && (
+                          <span className="text-sm text-ink-light ml-6">
+                            {word.definition}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Study session — available to ANY user, not owner-only.
+                  When the list has no words, suppress the start control and
+                  show a "no words yet" message. Otherwise render the
+                  StudySession, whose start control presents words one at a
+                  time. */}
+              {list.list && list.list.length > 0 ? (
+                <StudySession words={list.list} />
+              ) : (
+                <div>
+                  <span className="block text-xs font-medium tracking-widest uppercase text-ink-muted mb-1">
+                    Study
+                  </span>
+                  <p className="text-base text-ink-light leading-relaxed">
+                    This list has no words yet.
+                  </p>
+                </div>
+              )}
+
+              {/* Owner-only: edit list name and description*/}
+              {isOwner && (
+                <div>
+                  <EditListForm
+                    list={list}
+                    onUpdated={(updatedList) =>
+                      setList((prev) =>
+                        prev ? { ...prev, ...updatedList } : updatedList
+                      )
+                    }
+                  />
+                </div>
+              )}
+
+              {/* Owner-only: add words to this list */}
+              {isOwner && (
+                <div>
+                  <AddWordsForm
+                    listId={list.id}
+                    onWordsAdded={(updatedList) => setList(updatedList)}
+                  />
+                </div>
+              )}
+
+              {/* Owner-only: delete this list. On success the
+                  single-list detail view no longer has a list to show, so we
+                  navigate back to /home without a manual reload. */}
+              {isOwner && (
+                <div>
+                  <DeleteListControl
+                    listId={list.id}
+                    onDeleted={() => router.push("/home")}
+                  />
                 </div>
               )}
             </div>

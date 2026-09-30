@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import styles from "./Header.module.css";
@@ -8,10 +9,17 @@ import styles from "./Header.module.css";
 export default function Header() {
   const router = useRouter();
   const { currentUser, logout } = useAuth();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
-  const handleLogout = () => {
-    logout();
-    router.push("/");
+  const handleLogout = async () => {
+    setLogoutError(null);
+    try {
+      await logout();
+      router.push("/");
+    } catch {
+      // Sign-out failed: retain the session and stay on the current view.
+      setLogoutError("Sign-out did not complete. Please try again.");
+    }
   };
 
   return (
@@ -46,12 +54,22 @@ export default function Header() {
             Login
           </Link>
         ) : (
-          <button
-            onClick={handleLogout}
-            className={`${styles.logoutBtn} text-sm font-medium tracking-widest uppercase bg-transparent text-ink-light border border-border-dark px-5 py-2 rounded-none cursor-pointer`}
-          >
-            Logout
-          </button>
+          <div className="flex items-center gap-3">
+            {logoutError && (
+              <span
+                role="alert"
+                className="text-xs font-medium tracking-wide normal-case text-red-600"
+              >
+                {logoutError}
+              </span>
+            )}
+            <button
+              onClick={handleLogout}
+              className={`${styles.logoutBtn} text-sm font-medium tracking-widest uppercase bg-transparent text-ink-light border border-border-dark px-5 py-2 rounded-none cursor-pointer`}
+            >
+              Logout
+            </button>
+          </div>
         )}
       </nav>
     </header>
