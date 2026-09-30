@@ -9,6 +9,12 @@ export interface Credential {
   password: string;
 }
 
+export interface RegisterCredential {
+  username: string;
+  name: string;
+  password: string;
+}
+
 export interface List {
   id: string;
   name: string;
@@ -22,5 +28,5 @@ export interface List {
 export interface Word {
   id: string;
   term: string;
-  definition: string;
+  definition?: string;
 }

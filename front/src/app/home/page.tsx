@@ -12,9 +12,16 @@ import styles from "./page.module.css";
 export default function HomePage() {
   const { currentUser } = useAuth();
   const [lists, setLists] = useState<List[]>([]);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    listService.getAll().then(setLists);
+    listService
+      .getAll()
+      .then((data) => {
+        setLists(data);
+        setLoadError(false);
+      })
+      .catch(() => setLoadError(true));
   }, []);
 
   const handleListCreated = (newList: List) => {
@@ -63,7 +70,11 @@ export default function HomePage() {
 
         {/* Lists */}
         <div className={styles.listSection}>
-          {lists.length === 0 ? (
+          {loadError ? (
+            <div className={`${styles.emptyState} text-center py-16`}>
+              <p className="text-accent text-sm">Could not load lists</p>
+            </div>
+          ) : lists.length === 0 ? (
             <div className={`${styles.emptyState} text-center py-16`}>
               <p className="text-ink-muted text-sm">
                 No lists yet. Create your first one above.

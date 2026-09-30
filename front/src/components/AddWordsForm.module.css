@@ -1,0 +1,33 @@
+.formCard {
+  animation: fadeUp 0.5s ease-out both;
+}
+
+.wordRow {
+  animation: fadeIn 0.4s ease-out both;
+}
+
+.inputField {
+  border-bottom: 1.5px solid var(--color-border-dark);
+  transition: border-color 0.25s ease;
+}
+
+.inputField:focus {
+  border-color: var(--color-accent);
+  outline: none;
+}
+
+.error {
+  animation: fadeIn 0.3s ease-out both;
+}
+
+.submitBtn {
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.submitBtn:hover {
+  transform: translateY(-1px);
+}
+
+.submitBtn:active {
+  transform: translateY(0);
+}
