@@ -20,10 +20,18 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Login(LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
+        // Missing/empty username or password is rejected with a 400 that names the
+        // offending field. This is enforced automatically by [ApiController]
+        // ModelState validation using the DataAnnotations on LoginRequest, so no
+        // token is issued and execution never reaches this method on invalid input.
+
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
 
+        // Return the SAME generic 401 for both an unknown username and a wrong
+        // password so the response never discloses which credential was incorrect.
+        // No token is generated on this failure path.
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return Unauthorized(new { error = "wrong username or password" });
 

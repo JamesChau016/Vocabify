@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { RegisterCredential } from "@/types";
 
 const baseUrl = "/api/users";
 
@@ -7,4 +8,9 @@ const getAll = async () => {
   return response.data;
 };
 
-export default { getAll };
+const create = async ({ username, name, password }: RegisterCredential) => {
+  const response = await axios.post(baseUrl, { username, name, password });
+  return response.data;
+};
+
+export default { getAll, create };

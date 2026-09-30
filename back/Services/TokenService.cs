@@ -21,16 +21,25 @@ public class TokenService
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        // Compute a single issuance instant so that issued-at and expiry are derived
+        // from the same moment. JWT numeric-date claims are truncated to whole seconds;
+        // deriving expiry as now.AddDays(7) keeps the identical sub-second fraction, so
+        // exp - iat is exactly 604800 seconds (7 days) after truncation.
+        var now = DateTime.UtcNow;
+        var expires = now.AddDays(7);
+
         var claims = new[]
         {
             new Claim("id", userId.ToString()),
-            new Claim("user", username)
+            new Claim("user", username),
+            new Claim(JwtRegisteredClaimNames.Iat, EpochTime.GetIntDate(now).ToString(), ClaimValueTypes.Integer64)
         };
 
         var token = new JwtSecurityToken(
             issuer: _issuer,
             claims: claims,
-            expires: DateTime.UtcNow.AddDays(7),
+            notBefore: now,
+            expires: expires,
             signingCredentials: creds
         );
 
