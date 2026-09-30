@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/FITIN/.claude/plugins/cache/claude-plugins-official/skill-creator/unknown/skills/skill-creator/**)",
+      "Read(//c/Users/FITIN/.claude/plugins/cache/claude-plugins-official/skill-creator/**)",
+      "Bash(python -m scripts.aggregate_benchmark \"D:/Huy/Projects/Vocab/.claude/skills/vocabify-add-endpoint-workspace/iteration-1\" --skill-name vocabify-add-endpoint)",
+      "Bash(python -c ' *)",
+      "Bash(python -m scripts.aggregate_benchmark \"D:/Huy/Projects/Vocab/.claude/skills/vocabify-add-endpoint-workspace/iteration-1\" --skill-name vocabify-add-endpoint --skill-path \"D:/Huy/Projects/Vocab/.claude/skills/vocabify-add-endpoint\")",
+      "Bash(python eval-viewer/generate_review.py --help)",
+      "Bash(python eval-viewer/generate_review.py \"D:/Huy/Projects/Vocab/.claude/skills/vocabify-add-endpoint-workspace/iteration-1\" --skill-name vocabify-add-endpoint --benchmark \"D:/Huy/Projects/Vocab/.claude/skills/vocabify-add-endpoint-workspace/iteration-1/benchmark.json\" --static \"D:/Huy/Projects/Vocab/.claude/skills/vocabify-add-endpoint-workspace/iteration-1/review.html\")",
+      "Bash(mkdir -p \"D:/Huy/Projects/Vocab/.claude/skills/vocabify-add-endpoint-workspace/iteration-2/eval-1-delete-word/with_skill/run-1/outputs\")",
+      "Bash(cat)",
+      "PowerShell(python -c \"import yaml; print\\('yaml OK'\\)\")",
+      "Bash(grep -n \"eval_set\\\\|queries\\\\|should_trigger\\\\|expected\\\\|load_eval\" \"C:\\\\\\\\Users\\\\\\\\FITIN\\\\\\\\.claude\\\\\\\\plugins\\\\\\\\cache\\\\\\\\claude-plugins-official\\\\\\\\skill-creator\\\\\\\\unknown\\\\\\\\skills\\\\\\\\skill-creator\\\\\\\\scripts\\\\\\\\run_eval.py\")",
+      "Bash(unzip -l \"D:/Huy/Projects/Vocab/.claude/skills/dist/vocabify-add-endpoint.skill\")"
+    ]
+  }
+}

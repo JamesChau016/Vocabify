@@ -20,7 +20,6 @@ The web client runs at `http://localhost:3000` and proxies `/api/*` requests to 
 vocab/
 ├── README.md                     # This file
 ├── IMPLEMENTATION_SUMMARY.md     # What was built against the spec
-├── .kiro/specs/vocabify-website/ # Requirements, design, and task plan
 ├── back/                         # ASP.NET Core API  (see back/README.md)
 ├── front/                        # Next.js web client (see front/README.md)
 └── Vocabify.Tests/               # Backend test project (xUnit + FsCheck)

@@ -80,6 +80,12 @@ public class ListsController : ControllerBase
     [HttpPost("{id:guid}/words")]
     public async Task<IActionResult> AddWords(Guid id, List<AddWordItem> items)
     {
+        var userId = GetUserId();
+        if (userId is null) return Unauthorized(new { error = "token invalid" });
+
+        var user = await _db.Users.FindAsync(userId);
+        if (user is null) return BadRequest(new { error = "userId not found or invalid" });
+
         var list = await _db.VocabLists
             .Include(l => l.User)
             .Include(l => l.Words)
