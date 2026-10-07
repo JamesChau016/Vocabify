@@ -1,29 +1,18 @@
 # Vocabify
 
-A vocabulary learning website where users register, sign in, create and manage vocabulary
-lists, add word/definition pairs, and study them one at a time.
+A vocabulary learning app where users register or sign in with Google/GitHub, create and
+manage vocabulary lists, add word/definition pairs, and study them one at a time.
 
-The project is a monorepo with two deployable parts:
+## Repository layout
 
-| Part | Path | Stack |
-| --- | --- | --- |
-| **API** | [`back/`](./back) | ASP.NET Core (`net10.0`), EF Core, PostgreSQL, Redis, JWT, BCrypt |
-| **Web client** | [`front/`](./front) | Next.js 15 (App Router), React 19, TypeScript, axios |
-| **Backend tests** | [`Vocabify.Tests/`](./Vocabify.Tests) | xUnit, FsCheck, EF Core SQLite (in-memory) |
+| Path | Stack |
+|------|-------|
+| [`back/`](./back) | ASP.NET Core `net10.0`, EF Core, PostgreSQL, Redis, JWT (cookie), BCrypt, MailKit |
+| [`front/`](./front) | Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, axios |
+| [`Vocabify.Tests/`](./Vocabify.Tests) | xUnit test project (backend) |
 
-The web client runs at `http://localhost:3000` and proxies `/api/*` requests to the API at
-`http://localhost:3006`.
-
-## Repository structure
-
-```
-vocab/
-├── README.md                     # This file
-├── IMPLEMENTATION_SUMMARY.md     # What was built against the spec
-├── back/                         # ASP.NET Core API  (see back/README.md)
-├── front/                        # Next.js web client (see front/README.md)
-└── Vocabify.Tests/               # Backend test project (xUnit + FsCheck)
-```
+The web client runs at `http://localhost:3000` and proxies `/api/*` to the API at
+`http://localhost:3006` via Next.js rewrites. Browsers never talk directly to port 3006.
 
 ## Running the app
 
@@ -31,93 +20,117 @@ vocab/
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/)
 - [Node.js 18+](https://nodejs.org/)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for PostgreSQL + Redis)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
-### 1. Start the database containers
+### 1. Start infrastructure
 
 ```bash
 cd back
-docker compose up -d      # PostgreSQL on :5432, Redis on :6379
+docker compose up -d
 ```
+
+Starts PostgreSQL on `:5432`, Redis on `:6379`, and Mailhog on `:1025` (SMTP) / `:8025`
+(web UI — open [http://localhost:8025](http://localhost:8025) to inspect outbound emails in
+development).
 
 ### 2. Start the API
 
-In a new terminal:
-
 ```bash
 cd back
-dotnet run                # API on http://localhost:3006
+dotnet run          # http://localhost:3006
 ```
 
-The API applies all pending EF Core migrations automatically on startup — no separate
-migration step is required.
+EF Core migrations run automatically on startup.
 
 ### 3. Start the web client
-
-In another terminal:
 
 ```bash
 cd front
 npm install
-npm run dev                # App on http://localhost:3000
+npm run dev         # http://localhost:3000
 ```
 
-### 4. Use the app
+### 4. Optional: OAuth setup
 
-Open `http://localhost:3000`, register an account, sign in, and start building lists.
+To enable Google and GitHub sign-in, create OAuth apps and add the credentials to
+`back/appsettings.json`:
+
+| Provider | Console | Callback URL |
+|----------|---------|--------------|
+| Google | [console.cloud.google.com](https://console.cloud.google.com) → APIs & Services → Credentials | `http://localhost:3000/api/auth/callback/google` |
+| GitHub | github.com → Settings → Developer settings → OAuth Apps | `http://localhost:3000/api/auth/callback/github` |
+
+```json
+"OAuth": {
+  "Google": { "ClientId": "...", "ClientSecret": "..." },
+  "GitHub": { "ClientId": "...", "ClientSecret": "..." }
+}
+```
 
 ### Stopping
 
-- Stop each `dotnet run` / `npm run dev` process with `Ctrl+C`.
-- Stop the containers with `docker compose down` (run from `back/`). Add `-v` to also wipe
-  the PostgreSQL data volume for a clean slate.
+`Ctrl+C` each process, then:
 
-See [`back/README.md`](./back/README.md) and [`front/README.md`](./front/README.md) for
-more commands (tests, production builds, Docker management) and configuration details.
+```bash
+cd back
+docker compose down        # stop containers, keep data
+docker compose down -v     # stop containers and wipe all data
+```
 
 ## Features
 
-- **Accounts** — register (username, display name, password) and sign in with JWT tokens
-  that expire after 7 days.
-- **Vocabulary lists** — create, edit, and delete lists you own; browse all lists newest-first.
-- **Words** — add 1–100 words (term + optional definition) per request to lists you own.
-- **Study** — review a list's words one at a time, revealing each definition on demand, with
-  position/progress and a completion state.
-- **Access control** — write operations require a valid token and ownership; navigation
-  adapts to the authenticated/visitor state.
+- **Accounts** — register with username, display name, optional email, and password; or sign
+  in via Google or GitHub.
+- **Cookie sessions** — auth is carried by an HttpOnly cookie (7-day JWT); no tokens in
+  localStorage.
+- **Password reset** — request a reset link by email; links expire after 1 hour.
+- **Vocabulary lists** — create, edit, and delete lists you own; browse all lists with
+  client-side search by name, author, or description.
+- **Words** — add up to 100 words (term + optional definition) per batch; edit or delete
+  individual words inline.
+- **Study** — review a list's words one at a time, click to reveal definitions, track
+  progress, reach a completion screen.
+- **Access control** — mutations require ownership; read access is public.
 
 ## API surface
 
-| Method | Route | Auth | Purpose |
-| --- | --- | --- | --- |
+### Auth (`/api/auth`)
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| `POST` | `/api/auth/login` | No | Username + password login; sets `auth` cookie |
+| `POST` | `/api/auth/logout` | No | Clears the `auth` cookie |
+| `GET` | `/api/auth/me` | Cookie | Returns current user (`{username, name}`) |
+| `GET` | `/api/auth/oauth/google` | No | Returns Google OAuth URL |
+| `GET` | `/api/auth/callback/google` | No | Google OAuth callback; sets cookie, redirects to `/home` |
+| `GET` | `/api/auth/oauth/github` | No | Returns GitHub OAuth URL |
+| `GET` | `/api/auth/callback/github` | No | GitHub OAuth callback; sets cookie, redirects to `/home` |
+| `POST` | `/api/auth/forgot-password` | No | Sends reset email (always 200 to prevent enumeration) |
+| `POST` | `/api/auth/reset-password` | No | Verifies token and updates password |
+
+### Users (`/api/users`)
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
 | `POST` | `/api/users` | No | Register an account |
-| `GET` | `/api/users` | No | List users |
-| `POST` | `/api/login` | No | Authenticate, issue token |
-| `POST` | `/api/logout` | Bearer | Acknowledge logout (204) |
+| `GET` | `/api/users` | No | List all users |
+
+### Lists (`/api/lists`)
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
 | `GET` | `/api/lists` | No | All lists, newest first |
-| `GET` | `/api/lists/{id}` | No | Single list by id |
-| `POST` | `/api/lists` | Bearer | Create a list |
-| `PUT` | `/api/lists/{id}` | Bearer | Edit a list (owner only) |
-| `POST` | `/api/lists/{id}/words` | Bearer | Add words (owner only) |
-| `DELETE` | `/api/lists/{id}` | Bearer | Delete a list (owner only) |
+| `GET` | `/api/lists/{id}` | No | Single list |
+| `POST` | `/api/lists` | Cookie | Create a list |
+| `PUT` | `/api/lists/{id}` | Cookie | Edit name/description (owner only) |
+| `DELETE` | `/api/lists/{id}` | Cookie | Delete list (owner only) |
+| `POST` | `/api/lists/{id}/words` | Cookie | Add 1–100 words (owner only) |
+| `PUT` | `/api/lists/{id}/words/{wordId}` | Cookie | Edit a word (owner only) |
+| `DELETE` | `/api/lists/{id}/words/{wordId}` | Cookie | Delete a word (owner only) |
 
-Protected endpoints expect `Authorization: Bearer <token>`, where the token comes from
-`POST /api/login`.
+Protected endpoints read auth from the `auth` HttpOnly cookie set at login.
 
-## Testing
+## Further reading
 
-```bash
-# Backend
-cd Vocabify.Tests && dotnet test
-
-# Frontend
-cd front && npm test
-```
-
-## Documentation
-
-- [`IMPLEMENTATION_SUMMARY.md`](./IMPLEMENTATION_SUMMARY.md) — summary of the completed work.
-- [`back/README.md`](./back/README.md) — API details, data models, configuration.
-- [`front/README.md`](./front/README.md) — web client structure and routes.
-- [`.kiro/specs/vocabify-website/`](./.kiro/specs/vocabify-website) — requirements, design,
-  and implementation plan.
+- [`back/README.md`](./back/README.md) — API details, data models, configuration reference.
+- [`front/README.md`](./front/README.md) — client structure, routes, commands.

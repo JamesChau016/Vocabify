@@ -3,67 +3,47 @@ import type { Word } from "@/types";
 
 const baseUrl = "/api/lists";
 
-let token: string | null = null;
-
-const setToken = (newToken: string) => {
-  token = `Bearer ${newToken}`;
-};
-
 const getAll = async () => {
   const response = await axios.get(baseUrl);
   return response.data;
 };
 
 const getById = async (id: string) => {
-  const url = `${baseUrl}/${id}`;
-  const response = await axios.get(url);
+  const response = await axios.get(`${baseUrl}/${id}`);
   return response.data;
 };
 
 const createList = async (list: { name: string; description: string }) => {
-  const config = {
-    headers: { Authorization: token },
-  };
-  const response = await axios.post(baseUrl, list, config);
+  const response = await axios.post(baseUrl, list);
   return response.data;
 };
 
 const newWords = async (id: string, words: Array<Word>) => {
-  const config = {
-    headers: { Authorization: token },
-  };
-  const url = `${baseUrl}/${id}/words`;
-  const response = await axios.post(url, words, config);
+  const response = await axios.post(`${baseUrl}/${id}/words`, words);
   return response.data;
 };
 
-const update = async (
-  id: string,
-  list: { name: string; description?: string }
-) => {
-  const config = {
-    headers: { Authorization: token },
-  };
-  const url = `${baseUrl}/${id}`;
-  const response = await axios.put(url, list, config);
+const update = async (id: string, list: { name: string; description?: string }) => {
+  const response = await axios.put(`${baseUrl}/${id}`, list);
   return response.data;
 };
 
 const remove = async (id: string) => {
-  const config = {
-    headers: { Authorization: token },
-  };
-  const url = `${baseUrl}/${id}`;
-  const response = await axios.delete(url, config);
+  const response = await axios.delete(`${baseUrl}/${id}`);
   return response.data;
 };
 
-export default {
-  setToken,
-  getAll,
-  getById,
-  createList,
-  newWords,
-  update,
-  remove,
+const updateWord = async (
+  listId: string,
+  wordId: string,
+  word: { term: string; definition?: string }
+) => {
+  const response = await axios.put(`${baseUrl}/${listId}/words/${wordId}`, word);
+  return response.data;
 };
+
+const deleteWord = async (listId: string, wordId: string) => {
+  await axios.delete(`${baseUrl}/${listId}/words/${wordId}`);
+};
+
+export default { getAll, getById, createList, newWords, update, remove, updateWord, deleteWord };

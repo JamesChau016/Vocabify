@@ -10,6 +10,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<VocabList> VocabLists => Set<VocabList>();
     public DbSet<Word> Words => Set<Word>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -19,6 +20,10 @@ public class AppDbContext : DbContext
             e.HasMany(u => u.Lists)
              .WithOne(l => l.User)
              .HasForeignKey(l => l.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(u => u.PasswordResetTokens)
+             .WithOne(t => t.User)
+             .HasForeignKey(t => t.UserId)
              .OnDelete(DeleteBehavior.Cascade);
         });
 

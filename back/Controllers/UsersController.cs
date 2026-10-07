@@ -44,6 +44,7 @@ public class UsersController : ControllerBase
         {
             Username = request.Username,
             Name = request.Name,
+            Email = request.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, 10)
         };
 

@@ -1,18 +1,35 @@
 import axios from "axios";
+import type { Credential, User } from "@/types";
 
-const baseUrl = "/api/logout";
+const base = "/api/auth";
 
-let token: string | null = null;
-
-const setToken = (newToken: string) => {
-  token = `Bearer ${newToken}`;
+const login = async (creds: Credential): Promise<User> => {
+  const response = await axios.post(`${base}/login`, creds);
+  return response.data;
 };
 
 const logout = async (): Promise<void> => {
-  const config = {
-    headers: { Authorization: token },
-  };
-  await axios.post(baseUrl, null, config);
+  await axios.post(`${base}/logout`);
 };
 
-export default { setToken, logout };
+const me = async (): Promise<User> => {
+  const response = await axios.get(`${base}/me`);
+  return response.data;
+};
+
+const getOAuthUrl = async (provider: "google" | "github"): Promise<string> => {
+  const response = await axios.get(`${base}/oauth/${provider}`);
+  return response.data.url;
+};
+
+const forgotPassword = async (email: string): Promise<string> => {
+  const response = await axios.post(`${base}/forgot-password`, { email });
+  return response.data.message;
+};
+
+const resetPassword = async (tokenId: string, token: string, newPassword: string): Promise<string> => {
+  const response = await axios.post(`${base}/reset-password`, { tokenId, token, newPassword });
+  return response.data.message;
+};
+
+export default { login, logout, me, getOAuthUrl, forgotPassword, resetPassword };

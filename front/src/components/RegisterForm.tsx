@@ -10,6 +10,7 @@ export default function RegisterForm() {
   const { register } = useAuth();
   const [username, setUsername] = useState("");
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +18,7 @@ export default function RegisterForm() {
     e.preventDefault();
     setError(null);
     try {
-      await register({ username, name, password });
+      await register({ username, name, password, email: email || undefined });
       router.push("/login");
     } catch (err: unknown) {
       const message =
@@ -61,6 +62,19 @@ export default function RegisterForm() {
         />
       </div>
 
+      <div className="mb-8">
+        <label className="block text-xs font-medium tracking-widest uppercase text-ink-muted mb-3">
+          Email <span className="normal-case text-ink-muted font-normal">(for password reset)</span>
+        </label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className={`${styles.inputField} w-full bg-transparent text-ink py-3 px-0 text-base`}
+          placeholder="Optional"
+        />
+      </div>
+
       <div className="mb-10">
         <label className="block text-xs font-medium tracking-widest uppercase text-ink-muted mb-3">
           Password
@@ -70,7 +84,7 @@ export default function RegisterForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className={`${styles.inputField} w-full bg-transparent text-ink py-3 px-0 text-base`}
-          placeholder="Choose a password"
+          placeholder="At least 8 characters"
         />
       </div>
 

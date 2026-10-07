@@ -1,15 +1,18 @@
 "use client";
 
+import axios from "axios";
 import { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import type { User, Credential, RegisterCredential } from "@/types";
-import loginService from "@/services/login";
-import userService from "@/services/user";
 import authService from "@/services/auth";
-import listService from "@/services/list";
+import userService from "@/services/user";
+
+// Send cookies with every request
+axios.defaults.withCredentials = true;
 
 interface AuthContextType {
   currentUser: User | null;
+  sessionLoading: boolean;
   register: (creds: RegisterCredential) => Promise<void>;
   login: (creds: Credential) => Promise<void>;
   logout: () => Promise<void>;
@@ -19,42 +22,32 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
 
+  // Restore session from the HttpOnly cookie via /me
   useEffect(() => {
-    const stored = window.localStorage.getItem("loggedInUser");
-    if (stored) {
-      const user: User = JSON.parse(stored);
-      listService.setToken(user.token);
-      authService.setToken(user.token);
-      setCurrentUser(user);
-    }
+    authService.me()
+      .then((user) => setCurrentUser(user))
+      .catch(() => setCurrentUser(null))
+      .finally(() => setSessionLoading(false));
   }, []);
 
   const register = async (creds: RegisterCredential) => {
-    // Create the account only. Do NOT auto-authenticate here; the register
-    // page navigates the user to the sign-in interface afterwards.
     await userService.create(creds);
   };
 
   const login = async (creds: Credential) => {
-    const user = await loginService.login(creds);
-    listService.setToken(user.token);
-    authService.setToken(user.token);
+    const user = await authService.login(creds);
     setCurrentUser(user);
-    window.localStorage.setItem("loggedInUser", JSON.stringify(user));
   };
 
   const logout = async () => {
-    // Invalidate the session server-side first. Only clear local state on
-    // success; if the API call fails, retain the session and surface the
-    // error so the caller can display it.
     await authService.logout();
-    window.localStorage.clear();
     setCurrentUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, register, login, logout }}>
+    <AuthContext.Provider value={{ currentUser, sessionLoading, register, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

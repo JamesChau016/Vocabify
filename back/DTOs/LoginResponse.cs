@@ -1,3 +1,3 @@
 namespace Vocabify.DTOs;
 
-public record LoginResponse(string Token, string Username, string Name);
+public record LoginResponse(string Username, string Name);

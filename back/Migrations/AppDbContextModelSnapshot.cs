@@ -22,14 +22,49 @@ namespace Vocabify.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Vocabify.Models.PasswordResetToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Used")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PasswordResetTokens");
+                });
+
             modelBuilder.Entity("Vocabify.Models.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Email")
+                        .HasColumnType("text");
+
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OAuthId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OAuthProvider")
                         .HasColumnType("text");
 
                     b.Property<string>("PasswordHash")
@@ -101,6 +136,17 @@ namespace Vocabify.Migrations
                     b.ToTable("Words");
                 });
 
+            modelBuilder.Entity("Vocabify.Models.PasswordResetToken", b =>
+                {
+                    b.HasOne("Vocabify.Models.User", "User")
+                        .WithMany("PasswordResetTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Vocabify.Models.VocabList", b =>
                 {
                     b.HasOne("Vocabify.Models.User", "User")
@@ -126,6 +172,8 @@ namespace Vocabify.Migrations
             modelBuilder.Entity("Vocabify.Models.User", b =>
                 {
                     b.Navigation("Lists");
+
+                    b.Navigation("PasswordResetTokens");
                 });
 
             modelBuilder.Entity("Vocabify.Models.VocabList", b =>

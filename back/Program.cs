@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Vocabify.Data;
@@ -15,7 +16,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = builder.Configuration.GetConnectionString("Redis"));
 
-// JWT authentication
+// JWT authentication — reads token from the HttpOnly "auth" cookie
 var jwtSecret = builder.Configuration["Jwt:Secret"]!;
 var jwtIssuer = builder.Configuration["Jwt:Issuer"]!;
 
@@ -31,21 +32,44 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
         };
+
+        // Read JWT from the "auth" HttpOnly cookie instead of the Authorization header
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = ctx =>
+            {
+                ctx.Token = ctx.Request.Cookies["auth"];
+                return Task.CompletedTask;
+            }
+        };
     });
 
-// Singleton: TokenService is stateless and has no scoped deps, so one shared instance is fine.
-// Heads-up: do NOT inject Scoped services (e.g. AppDbContext) into anything Singleton here —
-// the DI container will throw at request time ("Cannot consume scoped service ... from singleton"),
-// because a Singleton outlives the request scope its dependency was tied to. This is the
-// "captive dependency" footgun. Business-logic services that touch the DbContext should be
-// AddScoped<T>() instead.
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddScoped<EmailService>();
+builder.Services.AddHttpClient();
 builder.Services.AddControllers();
 builder.Services.AddCors();
 
+// Allow reading forwarded headers from the Next.js dev proxy
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
 
-app.UseCors(policy => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+app.UseForwardedHeaders();
+
+// In dev, allow any origin with credentials so tools like Postman / REST clients work directly.
+// In prod, lock this down to your actual domain.
+var allowedOrigin = builder.Configuration["App:PublicUrl"] ?? "http://localhost:3000";
+app.UseCors(policy => policy
+    .WithOrigins(allowedOrigin)
+    .AllowAnyMethod()
+    .AllowAnyHeader()
+    .AllowCredentials());
 
 app.UseAuthentication();
 app.UseAuthorization();
