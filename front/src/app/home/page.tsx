@@ -13,6 +13,7 @@ export default function HomePage() {
   const { currentUser } = useAuth();
   const [lists, setLists] = useState<List[]>([]);
   const [loadError, setLoadError] = useState(false);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     listService
@@ -27,6 +28,17 @@ export default function HomePage() {
   const handleListCreated = (newList: List) => {
     setLists((prev) => [...prev, { ...newList, user: currentUser! }]);
   };
+
+  const filtered = search.trim()
+    ? lists.filter((l) => {
+        const q = search.toLowerCase();
+        return (
+          l.name.toLowerCase().includes(q) ||
+          l.author.toLowerCase().includes(q) ||
+          (l.description ?? "").toLowerCase().includes(q)
+        );
+      })
+    : lists;
 
   if (!currentUser) {
     return (
@@ -68,21 +80,34 @@ export default function HomePage() {
           <ListForm onCreated={handleListCreated} />
         </div>
 
+        {/* Search */}
+        {lists.length > 0 && (
+          <div className="mb-8">
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search lists..."
+              className="w-full bg-transparent border-b border-border-dark text-ink py-2 text-base focus:outline-none focus:border-accent placeholder:text-ink-muted"
+            />
+          </div>
+        )}
+
         {/* Lists */}
         <div className={styles.listSection}>
           {loadError ? (
             <div className={`${styles.emptyState} text-center py-16`}>
               <p className="text-accent text-sm">Could not load lists</p>
             </div>
-          ) : lists.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <div className={`${styles.emptyState} text-center py-16`}>
               <p className="text-ink-muted text-sm">
-                No lists yet. Create your first one above.
+                {search.trim() ? "No lists match your search." : "No lists yet. Create your first one above."}
               </p>
             </div>
           ) : (
             <div className="flex flex-col gap-0">
-              {lists.map((l) => (
+              {filtered.map((l) => (
                 <div
                   key={l.id}
                   className={`${styles.listItem} border-b border-border py-5`}

@@ -95,7 +95,6 @@ public class ListsController : ControllerBase
         if (list is null) return NotFound();
 
         // missing/invalid token is unauthorized, list unchanged.
-        var userId = GetUserId();
         if (userId is null) return Unauthorized(new { error = "token invalid" });
 
         // only the Owner may add words; non-owner is unauthorized, list unchanged.
@@ -199,6 +198,54 @@ public class ListsController : ControllerBase
             return Unauthorized(new { error = "You are not allowed to delete this list." });
 
         _db.VocabLists.Remove(list);
+        await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [Authorize]
+    [HttpPut("{listId:guid}/words/{wordId:guid}")]
+    public async Task<IActionResult> UpdateWord(Guid listId, Guid wordId, AddWordItem request)
+    {
+        var userId = GetUserId();
+        if (userId is null) return Unauthorized(new { error = "token invalid" });
+
+        var list = await _db.VocabLists
+            .Include(l => l.User)
+            .Include(l => l.Words)
+            .FirstOrDefaultAsync(l => l.Id == listId);
+
+        if (list is null) return NotFound(new { error = "List not found." });
+        if (list.UserId != userId) return Unauthorized(new { error = "You are not allowed to edit words in this list." });
+
+        var word = list.Words.FirstOrDefault(w => w.Id == wordId);
+        if (word is null) return NotFound(new { error = "Word not found." });
+
+        word.Term = request.Term;
+        word.Definition = request.Definition;
+        await _db.SaveChangesAsync();
+
+        return Ok(ToResponse(list));
+    }
+
+    [Authorize]
+    [HttpDelete("{listId:guid}/words/{wordId:guid}")]
+    public async Task<IActionResult> DeleteWord(Guid listId, Guid wordId)
+    {
+        var userId = GetUserId();
+        if (userId is null) return Unauthorized(new { error = "token invalid" });
+
+        var list = await _db.VocabLists
+            .Include(l => l.Words)
+            .FirstOrDefaultAsync(l => l.Id == listId);
+
+        if (list is null) return NotFound(new { error = "List not found." });
+        if (list.UserId != userId) return Unauthorized(new { error = "You are not allowed to delete words from this list." });
+
+        var word = list.Words.FirstOrDefault(w => w.Id == wordId);
+        if (word is null) return NotFound(new { error = "Word not found." });
+
+        _db.Words.Remove(word);
         await _db.SaveChangesAsync();
 
         return NoContent();
