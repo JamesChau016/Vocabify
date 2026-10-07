@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import listService from "@/services/list";
+import { lookupWord, suggestWords } from "@/services/dictionary";
 import type { List, Word } from "@/types";
 import styles from "./AddWordsForm.module.css";
 
@@ -13,50 +14,199 @@ interface AddWordsFormProps {
 interface WordRow {
   term: string;
   definition: string;
+  autoFilled: boolean;
 }
 
 const MAX_WORDS = 100;
+const DEBOUNCE_MS = 400;
+const MIN_TERM_LENGTH = 2;
 
-const emptyRow = (): WordRow => ({ term: "", definition: "" });
+const emptyRow = (): WordRow => ({ term: "", definition: "", autoFilled: false });
 
-export default function AddWordsForm({
-  listId,
-  onWordsAdded,
-}: AddWordsFormProps) {
+export default function AddWordsForm({ listId, onWordsAdded }: AddWordsFormProps) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<WordRow[]>([emptyRow()]);
+  const [lookingUp, setLookingUp] = useState<boolean[]>([false]);
+
+  // Suggestion dropdown — only one open at a time
+  const [suggestionRowIndex, setSuggestionRowIndex] = useState<number | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Cancel pending requests on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  const closeDropdown = () => {
+    setSuggestionRowIndex(null);
+    setSuggestions([]);
+    setHighlightedIndex(0);
+  };
+
+  const cancelPending = () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    abortRef.current?.abort();
+    abortRef.current = null;
+  };
+
   const reset = () => {
+    cancelPending();
+    closeDropdown();
     setRows([emptyRow()]);
+    setLookingUp([false]);
     setError(null);
     setSubmitting(false);
   };
 
-  const updateRow = (index: number, field: keyof WordRow, value: string) => {
+  // ── Term field handlers ──────────────────────────────────────────────────
+
+  const handleTermChange = (index: number, value: string) => {
     setRows((prev) =>
-      prev.map((row, i) => (i === index ? { ...row, [field]: value } : row))
+      prev.map((row, i) => (i === index ? { ...row, term: value } : row))
+    );
+
+    cancelPending();
+    closeDropdown();
+
+    if (value.trim().length < MIN_TERM_LENGTH) return;
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    debounceRef.current = setTimeout(async () => {
+      const words = await suggestWords(value.trim(), controller.signal);
+      if (words.length > 0) {
+        setSuggestions(words);
+        setSuggestionRowIndex(index);
+        setHighlightedIndex(0);
+      }
+    }, DEBOUNCE_MS);
+  };
+
+  const handleTermKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    index: number
+  ) => {
+    const isOpen = suggestionRowIndex === index && suggestions.length > 0;
+    if (!isOpen) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex((i) => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      void selectSuggestion(index, suggestions[highlightedIndex]);
+    } else if (e.key === "Escape") {
+      closeDropdown();
+    }
+  };
+
+  // Delay closing so a mousedown on a dropdown item isn't lost to blur
+  const handleTermBlur = async (index: number) => {
+    setTimeout(() => closeDropdown(), 150);
+
+    // Keep existing onBlur auto-fill: if definition is still empty, look up
+    const { term, definition } = rows[index];
+    if (!term.trim() || definition.trim()) return;
+
+    setLookingUp((prev) => prev.map((v, i) => (i === index ? true : v)));
+    const result = await lookupWord(term);
+    setLookingUp((prev) => prev.map((v, i) => (i === index ? false : v)));
+
+    if (result) {
+      setRows((prev) =>
+        prev.map((row, i) =>
+          i === index && !row.definition.trim()
+            ? {
+                ...row,
+                definition: result.partOfSpeech
+                  ? `(${result.partOfSpeech}) ${result.definition}`
+                  : result.definition,
+                autoFilled: true,
+              }
+            : row
+        )
+      );
+    }
+  };
+
+  // ── Suggestion selection ─────────────────────────────────────────────────
+
+  const selectSuggestion = async (rowIndex: number, word: string) => {
+    cancelPending();
+    closeDropdown();
+
+    // Fill the term immediately
+    setRows((prev) =>
+      prev.map((row, i) => (i === rowIndex ? { ...row, term: word } : row))
+    );
+
+    // Auto-fetch definition for the selected word
+    setLookingUp((prev) => prev.map((v, i) => (i === rowIndex ? true : v)));
+    const result = await lookupWord(word);
+    setLookingUp((prev) => prev.map((v, i) => (i === rowIndex ? false : v)));
+
+    if (result) {
+      setRows((prev) =>
+        prev.map((row, i) =>
+          i === rowIndex && !row.definition.trim()
+            ? {
+                ...row,
+                term: word,
+                definition: result.partOfSpeech
+                  ? `(${result.partOfSpeech}) ${result.definition}`
+                  : result.definition,
+                autoFilled: true,
+              }
+            : { ...row, term: word }
+        )
+      );
+    }
+  };
+
+  // ── Definition field handler ─────────────────────────────────────────────
+
+  const handleDefinitionChange = (index: number, value: string) => {
+    setRows((prev) =>
+      prev.map((row, i) =>
+        i === index ? { ...row, definition: value, autoFilled: false } : row
+      )
     );
   };
 
+  // ── Row management ───────────────────────────────────────────────────────
+
   const addRow = () => {
-    setRows((prev) =>
-      prev.length >= MAX_WORDS ? prev : [...prev, emptyRow()]
-    );
+    if (rows.length >= MAX_WORDS) return;
+    setRows((prev) => [...prev, emptyRow()]);
+    setLookingUp((prev) => [...prev, false]);
   };
 
   const removeRow = (index: number) => {
-    setRows((prev) =>
-      prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)
-    );
+    if (rows.length <= 1) return;
+    if (suggestionRowIndex === index) closeDropdown();
+    setRows((prev) => prev.filter((_, i) => i !== index));
+    setLookingUp((prev) => prev.filter((_, i) => i !== index));
   };
+
+  // ── Submit ───────────────────────────────────────────────────────────────
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // Client validation: reject any empty/whitespace-only term and
-    // identify the offending word by its row number WITHOUT calling the API.
     const invalidIndex = rows.findIndex((row) => row.term.trim() === "");
     if (invalidIndex !== -1) {
       setError(
@@ -71,13 +221,9 @@ export default function AddWordsForm({
     }
 
     const words = rows.map((row) => {
-      const trimmedDefinition = row.definition.trim();
-      const word: Pick<Word, "term" | "definition"> = {
-        term: row.term.trim(),
-      };
-      if (trimmedDefinition !== "") {
-        word.definition = trimmedDefinition;
-      }
+      const trimmedDef = row.definition.trim();
+      const word: Pick<Word, "term" | "definition"> = { term: row.term.trim() };
+      if (trimmedDef) word.definition = trimmedDef;
       return word;
     });
 
@@ -94,6 +240,8 @@ export default function AddWordsForm({
     }
   };
 
+  // ── Render ───────────────────────────────────────────────────────────────
+
   if (!open) {
     return (
       <button
@@ -106,58 +254,94 @@ export default function AddWordsForm({
   }
 
   return (
-    <div
-      className={`${styles.formCard} bg-cream-dark border border-border p-8 w-full`}
-    >
-      <h3 className="font-serif text-xl font-semibold text-ink mb-6">
+    <div className={`${styles.formCard} bg-cream-dark border border-border p-8 w-full`}>
+      <h3 className="font-serif text-xl font-semibold text-ink mb-2">
         Add words to this list
       </h3>
+      <p className="text-xs text-ink-muted mb-6">
+        Definitions are looked up automatically — you can edit them before adding.
+      </p>
 
       <form onSubmit={handleSubmit}>
         <div className="flex flex-col gap-5">
-          {rows.map((row, index) => (
-            <div key={index} className={`${styles.wordRow} flex gap-4 items-end`}>
-              <span className="text-xs font-medium text-ink-muted pb-2 w-6 shrink-0">
-                {index + 1}.
-              </span>
+          {rows.map((row, index) => {
+            const dropdownOpen = suggestionRowIndex === index && suggestions.length > 0;
+            return (
+              <div key={index} className={`${styles.wordRow} flex gap-4 items-end`}>
+                <span className="text-xs font-medium text-ink-muted pb-2 w-6 shrink-0">
+                  {index + 1}.
+                </span>
 
-              <div className="flex-1">
-                <label className="block text-xs font-medium tracking-widest uppercase text-ink-muted mb-2">
-                  Term
-                </label>
-                <input
-                  value={row.term}
-                  onChange={(e) => updateRow(index, "term", e.target.value)}
-                  className={`${styles.inputField} w-full bg-transparent text-ink py-2 px-0 text-base`}
-                  placeholder="e.g. Ephemeral"
-                />
+                {/* Term column */}
+                <div className={`${styles.termWrapper} flex-1`}>
+                  <label className="block text-xs font-medium tracking-widest uppercase text-ink-muted mb-2">
+                    Term
+                  </label>
+                  <input
+                    value={row.term}
+                    onChange={(e) => handleTermChange(index, e.target.value)}
+                    onKeyDown={(e) => handleTermKeyDown(e, index)}
+                    onBlur={() => handleTermBlur(index)}
+                    className={`${styles.inputField} w-full bg-transparent text-ink py-2 px-0 text-base`}
+                    placeholder="e.g. Ephemeral"
+                    aria-autocomplete="list"
+                    aria-expanded={dropdownOpen}
+                    aria-controls={dropdownOpen ? `suggestions-${index}` : undefined}
+                  />
+
+                  {dropdownOpen && (
+                    <ul
+                      id={`suggestions-${index}`}
+                      role="listbox"
+                      className={styles.dropdown}
+                    >
+                      {suggestions.map((word, i) => (
+                        <li
+                          key={word}
+                          role="option"
+                          aria-selected={i === highlightedIndex}
+                          onMouseDown={() => void selectSuggestion(index, word)}
+                          onMouseEnter={() => setHighlightedIndex(i)}
+                          className={`${styles.dropdownItem} ${i === highlightedIndex ? styles.dropdownItemActive : ""}`}
+                        >
+                          <span className={styles.dropdownTerm}>{word}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Definition column */}
+                <div className="flex-1">
+                  <label className="block text-xs font-medium tracking-widest uppercase text-ink-muted mb-2 flex items-center gap-2">
+                    Definition
+                    {row.autoFilled && (
+                      <span className="text-xs font-normal normal-case tracking-normal text-accent opacity-70">
+                        auto
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    value={lookingUp[index] ? "" : row.definition}
+                    onChange={(e) => handleDefinitionChange(index, e.target.value)}
+                    disabled={lookingUp[index]}
+                    className={`${styles.inputField} w-full bg-transparent text-ink py-2 px-0 text-base disabled:opacity-50`}
+                    placeholder={lookingUp[index] ? "Looking up..." : "Optional"}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => removeRow(index)}
+                  disabled={rows.length <= 1}
+                  aria-label={`Remove word ${index + 1}`}
+                  className="text-sm font-medium text-ink-muted bg-transparent border-none cursor-pointer hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200 pb-2"
+                >
+                  &times;
+                </button>
               </div>
-
-              <div className="flex-1">
-                <label className="block text-xs font-medium tracking-widest uppercase text-ink-muted mb-2">
-                  Definition
-                </label>
-                <input
-                  value={row.definition}
-                  onChange={(e) =>
-                    updateRow(index, "definition", e.target.value)
-                  }
-                  className={`${styles.inputField} w-full bg-transparent text-ink py-2 px-0 text-base`}
-                  placeholder="Optional"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={() => removeRow(index)}
-                disabled={rows.length <= 1}
-                aria-label={`Remove word ${index + 1}`}
-                className="text-sm font-medium text-ink-muted bg-transparent border-none cursor-pointer hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200 pb-2"
-              >
-                &times;
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <button
@@ -185,10 +369,7 @@ export default function AddWordsForm({
           </button>
           <button
             type="button"
-            onClick={() => {
-              reset();
-              setOpen(false);
-            }}
+            onClick={() => { reset(); setOpen(false); }}
             className="text-sm font-medium text-ink-muted bg-transparent border-none cursor-pointer hover:text-ink transition-colors duration-200 px-4 py-3"
           >
             Cancel
