@@ -31,26 +31,70 @@ docker compose up -d
 
 | Container | Port | Purpose |
 |-----------|------|---------|
-| `vocabify-postgres` | 5432 | Primary database |
+| `vocabify-postgres` | 5433 | Primary database |
 | `vocabify-redis` | 6379 | Cache (configured, not yet used by controllers) |
 | `vocabify-mailhog` | 1025 (SMTP) / 8025 (UI) | Catches outbound email in development |
 
 Open [http://localhost:8025](http://localhost:8025) to read emails sent by the password-reset
 flow.
 
-### 2. Start the API
+### 2. Apply migrations
+
+```bash
+dotnet ef database update
+```
+
+This applies any pending EF Core migrations to the PostgreSQL database.
+
+### 3. (Optional) Seed demo data
+
+```bash
+dotnet run -- seed
+```
+
+This creates two demo users with sample vocabulary lists:
+
+| Username | Password | Lists |
+|----------|----------|-------|
+| `demo_spanish` | `password123` | Spanish Verbs, Spanish Animals |
+| `demo_french` | `password123` | French Adjectives |
+
+Skip this step if you want to start with an empty database.
+
+### 4. Start the API
 
 ```bash
 dotnet run
 ```
 
-The API starts at `http://localhost:3006`. EF Core migrations run automatically on startup —
-no separate migration step is needed.
+The API starts at `http://localhost:3006`.
 
 To verify:
 ```bash
-curl http://localhost:3006/api/lists   # should return []
+curl http://localhost:3006/api/lists   # should return list of all public lists
 ```
+
+## Migrations
+
+EF Core migrations are committed to the repository and run separately from app startup.
+
+```bash
+# Apply pending migrations to the database
+dotnet ef database update
+
+# After modifying a model, create a new migration
+dotnet ef migrations add <MigrationName>
+
+# Revert to a previous migration (caution: destructive)
+dotnet ef database update <PreviousMigrationName>
+
+# List all migrations
+dotnet ef migrations list
+```
+
+**Important:** Always run `dotnet ef database update` before starting the API for the first time,
+or after pulling changes that add new migrations. Optionally seed demo data with `dotnet run -- seed`
+before starting the server.
 
 ### Docker commands
 
@@ -69,7 +113,7 @@ back/
 ├── docker-compose.yml            # PostgreSQL + Redis + Mailhog
 ├── appsettings.json              # Connection strings, JWT, OAuth, SMTP, App config
 ├── appsettings.Development.json  # Dev SMTP overrides
-├── Program.cs                    # DI, middleware pipeline, migrate-on-startup
+├── Program.cs                    # DI, middleware pipeline
 ├── Controllers/
 │   ├── AuthController.cs         # All auth: login, logout, /me, OAuth, password reset
 │   ├── UsersController.cs        # GET/POST /api/users
@@ -135,7 +179,7 @@ Cascade deletes: User → Lists → Words; User → PasswordResetTokens.
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
 | `POST` | `/api/users` | No | Register (409 if username taken) |
-| `GET` | `/api/users` | No | List all users |
+| `GET` | `/api/users` | Basic Auth | List all users |
 
 ### Lists
 
@@ -170,7 +214,7 @@ whether the email is registered.
 ```jsonc
 {
   "ConnectionStrings": {
-    "Postgres": "Host=localhost;Port=5432;Database=vocabify;Username=vocabify;Password=vocabify",
+    "Postgres": "Host=localhost;Port=5433;Database=vocabify;Username=vocabify;Password=vocabify",
     "Redis": "localhost:6379"
   },
   "Jwt": {

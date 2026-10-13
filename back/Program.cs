@@ -58,6 +58,16 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
+// Handle CLI commands (e.g., dotnet run -- seed)
+if (args.Contains("seed"))
+{
+    using var scope = builder.Services.BuildServiceProvider().CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await DbSeeder.SeedDemoDataAsync(db);
+    Console.WriteLine("✓ Demo data seeded successfully");
+    return;
+}
+
 var app = builder.Build();
 
 app.UseForwardedHeaders();
@@ -75,12 +85,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// Auto-migrate on startup
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
-}
 
 app.Run();

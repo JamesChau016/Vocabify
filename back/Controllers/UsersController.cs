@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Vocabify.Data;
 using Vocabify.DTOs;
+using Vocabify.Filters;
 using Vocabify.Models;
 
 namespace Vocabify.Controllers;
@@ -15,6 +16,7 @@ public class UsersController : ControllerBase
     public UsersController(AppDbContext db) => _db = db;
 
     [HttpGet]
+    [TypeFilter(typeof(AdminAuthFilter))]
     public async Task<IActionResult> GetAll()
     {
         var users = await _db.Users
