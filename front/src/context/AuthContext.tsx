@@ -1,8 +1,13 @@
 "use client";
 
 import axios from "axios";
-import { createContext, useContext, useState, useEffect } from "react";
-import type { ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  type ReactNode,
+} from "react";
 import type { User, Credential, RegisterCredential } from "@/types";
 import authService from "@/services/auth";
 import userService from "@/services/user";
