@@ -1,6 +1,7 @@
 .vscode
 
-*.Tests
+*/bin
+*/obj
 .env
 
 .claude/settings.local.json
