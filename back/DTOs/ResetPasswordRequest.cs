@@ -2,14 +2,15 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Vocabify.DTOs;
 
-public record ResetPasswordRequest(
-    [property: Required]
-    Guid TokenId,
+public record ResetPasswordRequest
+{
+    [Required]
+    public Guid TokenId { get; init; }
 
-    [property: Required]
-    string Token,
+    [Required]
+    public required string Token { get; init; }
 
-    [property: Required]
-    [property: StringLength(128, MinimumLength = 8, ErrorMessage = "Password must be between 8 and 128 characters.")]
-    string NewPassword
-);
+    [Required]
+    [StringLength(128, MinimumLength = 8, ErrorMessage = "Password must be between 8 and 128 characters.")]
+    public required string NewPassword { get; init; }
+}

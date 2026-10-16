@@ -6,6 +6,17 @@ using Microsoft.IdentityModel.Tokens;
 using Vocabify.Data;
 using Vocabify.Services;
 
+var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+if (File.Exists(envPath))
+{
+    DotNetEnv.Env.Load(
+        envPath,
+        new DotNetEnv.LoadOptions(
+            setEnvVars: true,
+            clobberExistingVars: true,
+            onlyExactPath: true));
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Database
@@ -19,6 +30,12 @@ builder.Services.AddStackExchangeRedisCache(options =>
 // JWT authentication — reads token from the HttpOnly "auth" cookie
 var jwtSecret = builder.Configuration["Jwt:Secret"]!;
 var jwtIssuer = builder.Configuration["Jwt:Issuer"]!;
+
+if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32)
+{
+    throw new InvalidOperationException(
+        "Jwt:Secret must be configured with at least 32 characters.");
+}
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -58,17 +75,17 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
+var app = builder.Build();
+
 // Handle CLI commands (e.g., dotnet run -- seed)
 if (args.Contains("seed"))
 {
-    using var scope = builder.Services.BuildServiceProvider().CreateScope();
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await DbSeeder.SeedDemoDataAsync(db);
-    Console.WriteLine("✓ Demo data seeded successfully");
+    Console.WriteLine("Demo data seeded successfully");
     return;
 }
-
-var app = builder.Build();
 
 app.UseForwardedHeaders();
 
