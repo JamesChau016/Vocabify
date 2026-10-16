@@ -34,5 +34,10 @@ public class AppDbContext : DbContext
              .HasForeignKey(w => w.VocabListId)
              .OnDelete(DeleteBehavior.Cascade);
         });
+
+        modelBuilder.Entity<PasswordResetToken>(e =>
+        {
+            e.HasIndex(token => token.TokenHash).IsUnique();
+        });
     }
 }
