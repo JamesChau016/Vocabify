@@ -1,0 +1,85 @@
+
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  backend:
+
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: vocabify_test
+          POSTGRES_USER: vocabify
+          POSTGRES_PASSWORD: vocabify
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U vocabify -d vocabify_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    
+    env:
+      ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=vocabify_test;Username=vocabify;Password=vocabify
+      ConnectionStrings__Redis: localhost:6379
+      ADMIN_USER: ci-admin
+      ADMIN_USER_PASS: ci-admin-password
+  
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+    - name: Restore dependencies
+      run: dotnet restore back/Vocabify.csproj
+    - name: Build
+      run: dotnet build back/Vocabify.csproj --configuration Release --no-restore
+    - name: Test
+      run: dotnet test Vocabify.Tests/Vocabify.Tests.csproj --configuration Release --verbosity normal
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+
+      - name: Install dependencies
+        working-directory: front
+        run: npm ci
+
+      - name: Type-check
+        working-directory: front
+        run: npx tsc --noEmit
+
+      - name: Test
+        working-directory: front
+        run: npm test -- --run
+
+      - name: Build
+        working-directory: front
+        run: npm run build
+
+      - name: Lint
+        working-directory: front
+        run: npm run lint

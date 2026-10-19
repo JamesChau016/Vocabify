@@ -1,0 +1,23 @@
+.container {
+  animation: fadeUp 0.6s ease-out both;
+}
+
+.detailCard {
+  animation: fadeUp 0.6s ease-out 0.15s both;
+}
+
+.backLink {
+  transition: color 0.2s ease, gap 0.2s ease;
+}
+
+.backLink:hover {
+  color: var(--color-accent);
+}
+
+.meta {
+  animation: fadeIn 0.6s ease-out 0.3s both;
+}
+
+.notFound {
+  animation: fadeUp 0.6s ease-out both;
+}

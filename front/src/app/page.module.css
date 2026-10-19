@@ -1,0 +1,24 @@
+.landing {
+  animation: fadeUp 0.8s ease-out both;
+}
+
+.title {
+  animation: fadeUp 0.8s ease-out 0.1s both;
+}
+
+.tagline {
+  animation: fadeUp 0.8s ease-out 0.25s both;
+}
+
+.cta {
+  animation: fadeUp 0.8s ease-out 0.4s both;
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.cta:hover {
+  transform: translateY(-1px);
+}
+
+.ornament {
+  animation: fadeIn 1.2s ease-out 0.6s both;
+}

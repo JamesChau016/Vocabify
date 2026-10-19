@@ -1,0 +1,23 @@
+.card {
+  animation: fadeUp 0.5s ease-out both;
+}
+
+.progress {
+  animation: fadeIn 0.3s ease-out both;
+}
+
+.definition {
+  animation: fadeUp 0.4s ease-out both;
+}
+
+.primaryBtn {
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.primaryBtn:hover {
+  transform: translateY(-1px);
+}
+
+.primaryBtn:active {
+  transform: translateY(0);
+}
