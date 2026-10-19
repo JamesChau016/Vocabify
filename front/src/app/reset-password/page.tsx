@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
 import authService from "@/services/auth";
 import styles from "@/app/login/page.module.css";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const params = useSearchParams();
   const tokenId = params.get("id");
   const token = params.get("token");
@@ -47,10 +47,8 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <>
-      <Header />
-      <main className="flex flex-col items-center justify-center min-h-[75vh] px-8">
-        <div className={`${styles.container} w-full max-w-sm`}>
+    <main className="flex flex-col items-center justify-center min-h-[75vh] px-8">
+      <div className={`${styles.container} w-full max-w-sm`}>
           <h1 className="font-serif text-4xl font-bold text-ink mb-2 text-center">
             New password
           </h1>
@@ -115,8 +113,18 @@ export default function ResetPasswordPage() {
               </form>
             </>
           )}
-        </div>
-      </main>
+      </div>
+    </main>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <>
+      <Header />
+      <Suspense>
+        <ResetPasswordForm />
+      </Suspense>
     </>
   );
 }
