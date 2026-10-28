@@ -32,7 +32,7 @@ docker compose up -d
 | Container | Port | Purpose |
 |-----------|------|---------|
 | `vocabify-postgres` | 5433 | Primary database |
-| `vocabify-redis` | 6379 | Cache (configured, not yet used by controllers) |
+| `vocabify-redis` | 6379 | Cache + rate limiting |
 | `vocabify-mailhog` | 1025 (SMTP) / 8025 (UI) | Catches outbound email in development |
 
 Open [http://localhost:8025](http://localhost:8025) to read emails sent by the password-reset
@@ -138,7 +138,10 @@ back/
 │   └── AppDbContext.cs           # DbContext + relationships + unique index on Username
 ├── Services/
 │   ├── TokenService.cs           # JWT generation (HS256, 7-day expiry)
-│   └── EmailService.cs           # MailKit SMTP email sender
+│   ├── EmailService.cs           # MailKit SMTP email sender
+│   ├── ListCacheService.cs       # Redis read-through cache for public list endpoints
+│   ├── RateLimitService.cs       # Fixed-window rate limiter (Redis atomic INCR)
+│   └── RateLimitPolicy.cs        # Rate limit policy definitions (prefix, max, window)
 └── Migrations/                   # EF Core auto-generated
 ```
 
@@ -164,15 +167,15 @@ Cascade deletes: User → Lists → Words; User → PasswordResetTokens.
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
-| `POST` | `/api/auth/login` | No | Validates credentials; sets `auth` HttpOnly cookie |
+| `POST` | `/api/auth/login` | No | Validates credentials; sets `auth` HttpOnly cookie. Rate limited: 5/15 min per IP+username |
 | `POST` | `/api/auth/logout` | No | Deletes the `auth` cookie |
 | `GET` | `/api/auth/me` | Cookie | Returns `{username, name}` for the current session |
 | `GET` | `/api/auth/oauth/google` | No | Returns `{url}` to begin Google OAuth flow |
 | `GET` | `/api/auth/callback/google` | No | Exchanges code, creates/finds user, sets cookie, redirects to `/home` |
 | `GET` | `/api/auth/oauth/github` | No | Returns `{url}` to begin GitHub OAuth flow |
 | `GET` | `/api/auth/callback/github` | No | Same as Google callback but for GitHub |
-| `POST` | `/api/auth/forgot-password` | No | Emails a reset link (always 200; never discloses whether email exists) |
-| `POST` | `/api/auth/reset-password` | No | Verifies token + expiry, updates password, invalidates token |
+| `POST` | `/api/auth/forgot-password` | No | Emails a reset link (always 200; never discloses whether email exists). Rate limited: 3/hr per IP |
+| `POST` | `/api/auth/reset-password` | No | Verifies token + expiry, updates password, invalidates token. Rate limited: 5/hr per IP |
 
 ### Users
 
@@ -185,8 +188,8 @@ Cascade deletes: User → Lists → Words; User → PasswordResetTokens.
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
-| `GET` | `/api/lists` | No | All lists, newest first |
-| `GET` | `/api/lists/{id}` | No | Single list (404 if missing) |
+| `GET` | `/api/lists` | No | All lists, newest first. Redis-cached (10 min TTL, version-key invalidation) |
+| `GET` | `/api/lists/{id}` | No | Single list (404 if missing). Redis-cached (10 min TTL, version-key invalidation) |
 | `POST` | `/api/lists` | Cookie | Create a list |
 | `PUT` | `/api/lists/{id}` | Cookie | Edit name/description (owner only) |
 | `DELETE` | `/api/lists/{id}` | Cookie | Delete list and all its words (owner only) |

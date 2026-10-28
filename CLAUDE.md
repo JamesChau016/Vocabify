@@ -1,6 +1,8 @@
 # CLAUDE.md
 
-Context for Claude Code working on this repository. Keep this file lean — anything Claude can infer from the source doesn't belong here.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+Keep this file lean — anything Claude can infer from the source doesn't belong here.
 
 ## Project Snapshot
 
@@ -14,15 +16,16 @@ This is a **learning project** for the maintainer (target: Applied AI Backend En
 
 ## Architecture
 
-Modular monolith. Three deployable artifacts:
+Modular monolith. Currently two deployable artifacts (extension planned for later):
 
 - `back/` — ASP.NET Core 8 Web API (the system of record + AI orchestration)
 - `front/` — Next.js 15 PWA, proxies `/api/*` to the backend
-- `extension/` — Chrome MV3 extension (Vite + React), talks to the backend over HTTPS
+- `extension/` — Chrome MV3 extension (Vite + React) — **planned, not yet created**
+- `Vocabify.Tests/` — xUnit test project (EF Core with SQLite in-memory)
 
-Data layer: PostgreSQL 17 with the **pgvector** extension (primary + vector search), Redis 7 (cache/sessions). Both run via `docker compose` from `back/`.
+Data layer: PostgreSQL 17 with the **pgvector** extension (primary + vector search), Redis 7 (cache/sessions), Mailhog (dev SMTP). All run via `docker compose` from `back/`.
 
-Auth is JWT Bearer. Tokens are issued by `POST /api/login` and used by both the web app and the extension.
+Auth is JWT Bearer via HttpOnly cookie. Tokens are issued by `POST /api/login`. OAuth flows exist for Google and GitHub. Password reset uses email (MailKit → Mailhog in dev).
 
 
 **Do not propose microservices.** The AI layer is the only realistic future extraction candidate, and only once it's grown large enough to warrant it.
@@ -66,16 +69,16 @@ docker compose down -v           # nuke local data
 dotnet ef database update        # apply migrations
 dotnet ef migrations add <Name>  # new migration
 dotnet run                       # API on :3006
-dotnet test                      # (when tests exist)
+dotnet run -- seed               # seed demo data (CLI verb in Program.cs)
+
+# Tests (run from repo root or Vocabify.Tests/)
+dotnet test                      # xUnit tests (uses SQLite in-memory)
 
 # Frontend (run from front/)
 npm run dev                      # :3000, proxies /api to :3006
 npm run build
 npm run lint
-
-# Extension (run from extension/)
-npm run dev                      # watch mode
-npm run build                    # produces /dist for Chrome
+npx vitest                       # unit tests (vitest + testing-library)
 ```
 
 ## Domain Model
@@ -88,9 +91,10 @@ User (1) ──→ (many) VocabList (1) ──→ (many) Word
 
 Current:
 
-- `User` — Id, Username (unique, min 3), Name, PasswordHash
+- `User` — Id, Username (unique, min 3), Name, PasswordHash, Email?, OAuthProvider?, OAuthId?
 - `VocabList` — Id, Name, Author, Description, DateCreated, UserId (FK)
 - `Word` — Id, Term, Definition, VocabListId (FK)
+- `PasswordResetToken` — Id, UserId (FK), TokenHash, ExpiresAt, Used
 
 Cascade deletes: deleting a user wipes their lists; deleting a list wipes its words.
 
@@ -119,13 +123,18 @@ Authorization: routes that mutate user-owned resources (lists, words, reviews) c
 - **No microservices proposals.**
 - **No desktop-first UI.** If a layout would break at 360px, it's wrong.
 
+## CI
+
+GitHub Actions workflow at `.github/workflows/ci.yaml` runs on push/PR to main:
+- Backend: restore → build → test (spins up Postgres 17 + Redis 7 services)
+- Frontend: Node 20 → type-check → test → build → lint
+
 ## Current Phase
 
-Check [ROADMAP.md](./ROADMAP.md) for the current phase and week. Don't pull work in from later phases. If a request crosses phases, flag it before implementing.
+Check [ROADMAP.md](./ROADMAP.md) for the current phase and week (if it exists). Don't pull work in from later phases. If a request crosses phases, flag it before implementing.
 
 ## When Stuck
 
 - Ambiguous requirement → ask, don't guess.
 - Two reasonable designs → present both with tradeoffs, let the maintainer pick. This is a learning project; the choice itself is the lesson.
-- Unfamiliar .NET API → point at the matching `LEARNING.md` link instead of reverse-engineering.
 - Tempted to add infra (queues, workers, gRPC, gateways) → stop and check whether the current feature actually requires it.
