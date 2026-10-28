@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Vocabify.Data;
 using Vocabify.DTOs;
 using Vocabify.Models;
+using Vocabify.Services;
 
 namespace Vocabify.Controllers;
 
@@ -13,24 +14,37 @@ namespace Vocabify.Controllers;
 public class ListsController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly ListCacheService _cache;
 
-    public ListsController(AppDbContext db) => _db = db;
+    public ListsController(AppDbContext db, ListCacheService cache)
+    {
+        _db = db;
+        _cache = cache;
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
+        var cached = await _cache.GetAllListsAsync();
+        if (cached is not null) return Ok(cached);
+
         var lists = await _db.VocabLists
             .Include(l => l.User)
             .Include(l => l.Words)
             .OrderByDescending(l => l.DateCreated)
             .ToListAsync();
 
-        return Ok(lists.Select(ToResponse));
+        var response = lists.Select(ToResponse).ToList();
+        await _cache.SetAllListsAsync(response);
+        return Ok(response);
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
+        var cached = await _cache.GetListAsync(id);
+        if (cached is not null) return Ok(cached);
+
         var list = await _db.VocabLists
             .Include(l => l.User)
             .Include(l => l.Words)
@@ -38,7 +52,9 @@ public class ListsController : ControllerBase
 
         if (list is null) return NotFound();
 
-        return Ok(ToResponse(list));
+        var response = ToResponse(list);
+        await _cache.SetListAsync(response);
+        return Ok(response);
     }
 
     [Authorize]
@@ -72,6 +88,8 @@ public class ListsController : ControllerBase
 
         // Reload with navigation properties
         await _db.Entry(list).Reference(l => l.User).LoadAsync();
+
+        await _cache.InvalidateAllListsAsync();
 
         return Created($"/api/lists/{list.Id}", ToResponse(list));
     }
@@ -140,6 +158,8 @@ public class ListsController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        await _cache.InvalidateListAsync(id);
+
         // return the updated Vocab_List including all of its Words.
         return Created($"/api/lists/{list.Id}", ToResponse(list));
     }
@@ -174,6 +194,8 @@ public class ListsController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        await _cache.InvalidateListAsync(id);
+
         // Reload navigation properties for the response.
         await _db.Entry(list).Reference(l => l.User).LoadAsync();
         await _db.Entry(list).Collection(l => l.Words).LoadAsync();
@@ -200,6 +222,10 @@ public class ListsController : ControllerBase
         _db.VocabLists.Remove(list);
         await _db.SaveChangesAsync();
 
+        await Task.WhenAll(
+            _cache.InvalidateAllListsAsync(),
+            _cache.InvalidateListAsync(id));
+
         return NoContent();
     }
 
@@ -225,6 +251,8 @@ public class ListsController : ControllerBase
         word.Definition = request.Definition;
         await _db.SaveChangesAsync();
 
+        await _cache.InvalidateListAsync(listId);
+
         return Ok(ToResponse(list));
     }
 
@@ -247,6 +275,8 @@ public class ListsController : ControllerBase
 
         _db.Words.Remove(word);
         await _db.SaveChangesAsync();
+
+        await _cache.InvalidateListAsync(listId);
 
         return NoContent();
     }

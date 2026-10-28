@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using StackExchange.Redis;
 using Vocabify.Data;
 using Vocabify.Services;
 
@@ -61,8 +62,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+    ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis")!));
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddSingleton<RateLimitService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<ListCacheService>();
 builder.Services.AddHttpClient();
 builder.Services.AddControllers();
 builder.Services.AddCors();

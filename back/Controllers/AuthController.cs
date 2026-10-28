@@ -21,6 +21,7 @@ public class AuthController : ControllerBase
     private readonly AppDbContext _db;
     private readonly TokenService _tokenService;
     private readonly EmailService _emailService;
+    private readonly RateLimitService _rateLimiter;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _config;
     private readonly IWebHostEnvironment _env;
@@ -29,6 +30,7 @@ public class AuthController : ControllerBase
         AppDbContext db,
         TokenService tokenService,
         EmailService emailService,
+        RateLimitService rateLimiter,
         IHttpClientFactory httpClientFactory,
         IConfiguration config,
         IWebHostEnvironment env)
@@ -36,6 +38,7 @@ public class AuthController : ControllerBase
         _db = db;
         _tokenService = tokenService;
         _emailService = emailService;
+        _rateLimiter = rateLimiter;
         _httpClientFactory = httpClientFactory;
         _config = config;
         _env = env;
@@ -46,6 +49,9 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
+        if (await _rateLimiter.IsRateLimitedAsync(RateLimitPolicy.Login, ClientIp(), request.Username))
+            return StatusCode(429, new { error = "Too many login attempts. Try again later." });
+
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
 
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
@@ -244,6 +250,9 @@ public class AuthController : ControllerBase
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
     {
+        if (await _rateLimiter.IsRateLimitedAsync(RateLimitPolicy.ForgotPassword, ClientIp()))
+            return StatusCode(429, new { error = "Too many requests. Try again later." });
+
         var generic = Ok(new { message = "If that email is registered, you'll receive a reset link shortly." });
 
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
@@ -274,6 +283,9 @@ public class AuthController : ControllerBase
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
+        if (await _rateLimiter.IsRateLimitedAsync(RateLimitPolicy.ResetPassword, ClientIp()))
+            return StatusCode(429, new { error = "Too many requests. Try again later." });
+
         var invalid = BadRequest(new { error = "Invalid or expired reset link." });
 
         var resetToken = await _db.PasswordResetTokens
@@ -378,6 +390,9 @@ public class AuthController : ControllerBase
 
         return candidate;
     }
+
+    private string ClientIp() =>
+        HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
     private Guid? GetUserId()
     {
