@@ -51,6 +51,69 @@ namespace Vocabify.Migrations
                     b.ToTable("PasswordResetTokens");
                 });
 
+            modelBuilder.Entity("Vocabify.Models.ReviewLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("EaseFactorBefore")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Grade")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("IntervalBefore")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RepetitionsBefore")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("WordId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WordId");
+
+                    b.HasIndex("UserId", "WordId", "ReviewedAt");
+
+                    b.ToTable("ReviewLogs");
+                });
+
+            modelBuilder.Entity("Vocabify.Models.ReviewState", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("WordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("DueAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("EaseFactor")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Interval")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Repetitions")
+                        .HasColumnType("integer");
+
+                    b.HasKey("UserId", "WordId");
+
+                    b.HasIndex("WordId");
+
+                    b.ToTable("ReviewStates");
+                });
+
             modelBuilder.Entity("Vocabify.Models.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -148,6 +211,44 @@ namespace Vocabify.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Vocabify.Models.ReviewLog", b =>
+                {
+                    b.HasOne("Vocabify.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Vocabify.Models.Word", "Word")
+                        .WithMany()
+                        .HasForeignKey("WordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+
+                    b.Navigation("Word");
+                });
+
+            modelBuilder.Entity("Vocabify.Models.ReviewState", b =>
+                {
+                    b.HasOne("Vocabify.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Vocabify.Models.Word", "Word")
+                        .WithMany()
+                        .HasForeignKey("WordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+
+                    b.Navigation("Word");
                 });
 
             modelBuilder.Entity("Vocabify.Models.VocabList", b =>

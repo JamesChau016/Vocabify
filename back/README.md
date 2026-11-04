@@ -117,12 +117,15 @@ back/
 ├── Controllers/
 │   ├── AuthController.cs         # All auth: login, logout, /me, OAuth, password reset
 │   ├── UsersController.cs        # GET/POST /api/users
-│   └── ListsController.cs        # CRUD /api/lists + word management
+│   ├── ListsController.cs        # CRUD /api/lists + word management
+│   └── StudyController.cs        # GET /api/study/due, POST /api/study/review
 ├── Models/
 │   ├── User.cs                   # User entity (+ Email, OAuthProvider, OAuthId)
 │   ├── VocabList.cs              # Vocabulary list entity
 │   ├── Word.cs                   # Word entity (term + definition)
-│   └── PasswordResetToken.cs     # One-time password reset token
+│   ├── PasswordResetToken.cs     # One-time password reset token
+│   ├── ReviewState.cs            # SM-2 state per user–word pair (composite PK)
+│   └── ReviewLog.cs              # Append-only review audit log
 ├── DTOs/
 │   ├── LoginRequest.cs
 │   ├── LoginResponse.cs          # {username, name} — no token (cookie carries auth)
@@ -133,15 +136,21 @@ back/
 │   ├── ForgotPasswordRequest.cs  # {email}
 │   ├── ResetPasswordRequest.cs   # {tokenId, token, newPassword}
 │   ├── UserResponse.cs
-│   └── ListResponse.cs           # includes WordResponse list
+│   ├── ListResponse.cs           # includes WordResponse list
+│   ├── ReviewRequest.cs          # {wordId, grade}
+│   ├── ReviewStateDto.cs         # {easeFactor, interval, repetitions, dueAt}
+│   └── DueWordDto.cs             # word + optional ReviewState (null = new)
 ├── Data/
-│   └── AppDbContext.cs           # DbContext + relationships + unique index on Username
+│   ├── AppDbContext.cs           # DbContext + relationships + unique index on Username
+│   └── DesignTimeDbContextFactory.cs  # Lets dotnet ef run without Redis
 ├── Services/
 │   ├── TokenService.cs           # JWT generation (HS256, 7-day expiry)
 │   ├── EmailService.cs           # MailKit SMTP email sender
 │   ├── ListCacheService.cs       # Redis read-through cache for public list endpoints
 │   ├── RateLimitService.cs       # Fixed-window rate limiter (Redis atomic INCR)
-│   └── RateLimitPolicy.cs        # Rate limit policy definitions (prefix, max, window)
+│   ├── RateLimitPolicy.cs        # Rate limit policy definitions (prefix, max, window)
+│   ├── Sm2Algorithm.cs           # Pure SM-2 spaced-repetition algorithm (no DI/DB/clock)
+│   └── StudyService.cs           # Due-word queries + review recording
 └── Migrations/                   # EF Core auto-generated
 ```
 
@@ -150,6 +159,8 @@ back/
 ```
 User (1) ──→ (many) VocabList (1) ──→ (many) Word
 User (1) ──→ (many) PasswordResetToken
+User + Word ──→ (1) ReviewState
+User + Word ──→ (many) ReviewLog
 ```
 
 | Model | Fields |
@@ -158,8 +169,10 @@ User (1) ──→ (many) PasswordResetToken
 | **VocabList** | `Id`, `Name`, `Author`, `Description`?, `DateCreated` (UTC), `UserId` (FK) |
 | **Word** | `Id`, `Term` (1–200), `Definition`? (≤ 2000), `VocabListId` (FK) |
 | **PasswordResetToken** | `Id`, `UserId` (FK), `TokenHash` (BCrypt), `ExpiresAt`, `Used` |
+| **ReviewState** | PK(`UserId`, `WordId`), `EaseFactor`, `Interval`, `Repetitions`, `DueAt` |
+| **ReviewLog** | `Id`, `UserId` (FK), `WordId` (FK), `Grade`, `EaseFactorBefore`, `IntervalBefore`, `RepetitionsBefore`, `ReviewedAt` |
 
-Cascade deletes: User → Lists → Words; User → PasswordResetTokens.
+Cascade deletes: User → Lists → Words; User → PasswordResetTokens; User/Word → ReviewStates, ReviewLogs.
 
 ## API Endpoints
 
@@ -196,6 +209,13 @@ Cascade deletes: User → Lists → Words; User → PasswordResetTokens.
 | `POST` | `/api/lists/{id}/words` | Cookie | Add 1–100 words atomically (owner only) |
 | `PUT` | `/api/lists/{id}/words/{wordId}` | Cookie | Edit a word's term/definition (owner only) |
 | `DELETE` | `/api/lists/{id}/words/{wordId}` | Cookie | Delete a single word (owner only) |
+
+### Study (Spaced Repetition)
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| `GET` | `/api/study/due?tz={iana}` | Cookie | Words due for review today (includes never-reviewed). Default tz=UTC |
+| `POST` | `/api/study/review` | Cookie | Submit grade (0=Again, 1=Hard, 2=Good, 3=Easy). Returns updated ReviewState. Rate limited: 120/15 min per user |
 
 ### Authentication
 

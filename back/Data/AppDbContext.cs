@@ -11,6 +11,8 @@ public class AppDbContext : DbContext
     public DbSet<VocabList> VocabLists => Set<VocabList>();
     public DbSet<Word> Words => Set<Word>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<ReviewState> ReviewStates => Set<ReviewState>();
+    public DbSet<ReviewLog> ReviewLogs => Set<ReviewLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,6 +40,24 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<PasswordResetToken>(e =>
         {
             e.HasIndex(token => token.TokenHash).IsUnique();
+        });
+
+        modelBuilder.Entity<ReviewState>(e =>
+        {
+            e.HasKey(r => new { r.UserId, r.WordId });
+            e.HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(r => r.Word).WithMany().HasForeignKey(r => r.WordId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ReviewLog>(e =>
+        {
+            e.HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(r => r.Word).WithMany().HasForeignKey(r => r.WordId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(r => new { r.UserId, r.WordId, r.ReviewedAt });
         });
     }
 }

@@ -68,6 +68,7 @@ builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<RateLimitService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<ListCacheService>();
+builder.Services.AddScoped<StudyService>();
 builder.Services.AddHttpClient();
 builder.Services.AddControllers();
 builder.Services.AddCors();
