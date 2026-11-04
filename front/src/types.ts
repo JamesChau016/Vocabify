@@ -30,3 +30,20 @@ export interface Word {
   term: string;
   definition?: string;
 }
+
+export interface ReviewState {
+  easeFactor: number;
+  interval: number;
+  repetitions: number;
+  dueAt: string;
+}
+
+export interface DueWord {
+  id: string;
+  term: string;
+  definition?: string;
+  listId: string;
+  reviewState: ReviewState | null;
+}
+
+export type Grade = 0 | 1 | 2 | 3;

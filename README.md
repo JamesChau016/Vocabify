@@ -88,8 +88,10 @@ docker compose down -v     # stop containers and wipe all data
   client-side search by name, author, or description.
 - **Words** — add up to 100 words (term + optional definition) per batch; edit or delete
   individual words inline.
-- **Study** — review a list's words one at a time, click to reveal definitions, track
-  progress, reach a completion screen.
+- **Spaced repetition** — SM-2 algorithm tracks ease, interval, and due date per user–word
+  pair. Study sessions show four grade buttons (Again / Hard / Good / Easy) after revealing
+  a definition; each grade adjusts the next review interval. A timezone-aware endpoint
+  returns words due today, including never-reviewed words.
 - **Access control** — mutations require ownership; read access is public.
 
 ## API surface
@@ -127,6 +129,13 @@ docker compose down -v     # stop containers and wipe all data
 | `POST` | `/api/lists/{id}/words` | Cookie | Add 1–100 words (owner only) |
 | `PUT` | `/api/lists/{id}/words/{wordId}` | Cookie | Edit a word (owner only) |
 | `DELETE` | `/api/lists/{id}/words/{wordId}` | Cookie | Delete a word (owner only) |
+
+### Study (`/api/study`)
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| `GET` | `/api/study/due?tz={iana}` | Cookie | Words due for review today (includes never-reviewed) |
+| `POST` | `/api/study/review` | Cookie | Submit grade (0-3); returns updated review state |
 
 Protected endpoints read auth from the `auth` HttpOnly cookie set at login.
 

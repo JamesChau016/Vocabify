@@ -10,7 +10,7 @@ import DeleteListControl from "@/components/DeleteListControl";
 import StudySession from "@/components/StudySession";
 import listService from "@/services/list";
 import { useAuth } from "@/context/AuthContext";
-import type { List, Word } from "@/types";
+import type { List, Word, DueWord } from "@/types";
 import styles from "./page.module.css";
 
 export default function ListDetailPage() {
@@ -264,7 +264,15 @@ export default function ListDetailPage() {
                   StudySession, whose start control presents words one at a
                   time. */}
               {list.list && list.list.length > 0 ? (
-                <StudySession words={list.list} />
+                <StudySession
+                  words={list.list.map((w): DueWord => ({
+                    id: w.id,
+                    term: w.term,
+                    definition: w.definition,
+                    listId: list.id,
+                    reviewState: null,
+                  }))}
+                />
               ) : (
                 <div>
                   <span className="block text-xs font-medium tracking-widest uppercase text-ink-muted mb-1">

@@ -42,13 +42,14 @@ front/
 ├── vitest.config.mts            # Test runner config
 ├── vitest.setup.ts              # Shared test setup
 └── src/
-    ├── types.ts                 # User, List, Word, Credential, RegisterCredential
+    ├── types.ts                 # User, List, Word, DueWord, ReviewState, Grade, Credential, RegisterCredential
     ├── context/
     │   └── AuthContext.tsx      # Auth provider (currentUser, login, logout, register)
     │                            # also sets axios.defaults.withCredentials = true
     ├── services/
     │   ├── auth.ts              # login, logout, me, getOAuthUrl, forgotPassword, resetPassword
     │   ├── list.ts              # GET/POST/PUT/DELETE /api/lists + word edit/delete
+    │   ├── study.ts             # GET /api/study/due, POST /api/study/review
     │   └── user.ts              # POST /api/users (register)
     ├── components/
     │   ├── Header.tsx           # Nav bar (auth-aware)
@@ -57,7 +58,7 @@ front/
     │   ├── AddWordsForm.tsx     # Owner: add 1–100 words with client validation
     │   ├── EditListForm.tsx     # Owner: edit list name/description inline
     │   ├── DeleteListControl.tsx# Owner: delete list (two-step confirm)
-    │   └── StudySession.tsx     # Flashcard study (idle → active → complete)
+    │   └── StudySession.tsx     # Spaced-repetition study (reveal → grade → next word)
     └── app/
         ├── layout.tsx           # Root layout (AuthProvider)
         ├── page.tsx             # Landing (/)
