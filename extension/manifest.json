@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Vocabify Capture",
+  "version": "1.0.0",
+  "description": "Save vocabulary to your Vocabify lists.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Vocabify Capture"
+  },
+  "permissions": ["storage"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"]
+}
