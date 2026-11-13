@@ -143,7 +143,6 @@ export default function StudySession({ words }: StudySessionProps) {
 
   // ── Active ──────────────────────────────────────────────────────
   const currentWord = words[currentIndex];
-  const isLast = currentIndex + 1 >= total;
 
   return (
     <div

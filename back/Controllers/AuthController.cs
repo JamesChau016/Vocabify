@@ -72,7 +72,7 @@ public class AuthController : ControllerBase
 
     // ── Session restore ──────────────────────────────────────────────────────
 
-    [Authorize]
+    [Authorize(Policy = "Capture")]
     [HttpGet("me")]
     public async Task<IActionResult> Me()
     {

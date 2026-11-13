@@ -94,7 +94,7 @@ public class ListsController : ControllerBase
         return Created($"/api/lists/{list.Id}", ToResponse(list));
     }
 
-    [Authorize]
+    [Authorize(Policy = "Capture")]
     [HttpPost("{id:guid}/words")]
     public async Task<IActionResult> AddWords(Guid id, List<AddWordItem> items)
     {

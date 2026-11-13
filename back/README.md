@@ -232,6 +232,38 @@ whether the email is registered.
 
 ## Configuration
 
+### Extension capture tokens
+
+Signed-in users can create and revoke API tokens at `/settings/tokens`. Tokens have the
+`capture` scope, expire after 90 days, and can call `GET /api/auth/me` and
+`POST /api/lists/{id}/words` for lists they own. Other protected endpoints require the
+HttpOnly `auth` cookie. The token secret is returned only by `POST /api/auth/tokens`;
+only its SHA-256 hash is stored. Revocation takes effect on the next request.
+
+| Method | Route | Cookie required | Result |
+|--------|-------|-----------------|--------|
+| `GET` | `/api/auth/tokens` | Yes | Token metadata, including revoked tokens, without secrets |
+| `POST` | `/api/auth/tokens` | Yes | Create from `{ "name": "My extension" }`; response includes the token once |
+| `DELETE` | `/api/auth/tokens/{id}` | Yes | Revoke a token you own |
+
+```bash
+curl -c cookies.txt -H 'Content-Type: application/json' \
+  -d '{"username":"demo_spanish","password":"password123"}' \
+  http://localhost:3006/api/auth/login
+
+curl -b cookies.txt -H 'Content-Type: application/json' \
+  -d '{"name":"My extension"}' http://localhost:3006/api/auth/tokens
+
+curl -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' \
+  -d '[{"term":"hola","definition":"hello"}]' \
+  http://localhost:3006/api/lists/<owned-list-id>/words
+
+curl -X DELETE -b cookies.txt http://localhost:3006/api/auth/tokens/<token-id>
+```
+
+When a Bearer header is present on a capture route, it takes precedence over the cookie.
+
+
 `appsettings.json` keys:
 
 ```jsonc
@@ -264,6 +296,10 @@ In production, override `Jwt:Secret`, `App:PublicUrl`, the OAuth credentials, an
 via environment variables or secrets management — never commit real credentials.
 
 ## Tests
+
+For browser extension requests, set `App:ExtensionOrigins` to an array containing the
+extension origin, such as `["chrome-extension://<extension-id>"]`. The API adds these
+origins to its CORS allowlist.
 
 ```bash
 cd ../Vocabify.Tests

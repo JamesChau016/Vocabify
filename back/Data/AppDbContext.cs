@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     public DbSet<VocabList> VocabLists => Set<VocabList>();
     public DbSet<Word> Words => Set<Word>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<ApiToken> ApiTokens => Set<ApiToken>();
     public DbSet<ReviewState> ReviewStates => Set<ReviewState>();
     public DbSet<ReviewLog> ReviewLogs => Set<ReviewLog>();
 
@@ -27,6 +28,16 @@ public class AppDbContext : DbContext
              .WithOne(t => t.User)
              .HasForeignKey(t => t.UserId)
              .OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(u => u.ApiTokens)
+             .WithOne(t => t.User)
+             .HasForeignKey(t => t.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ApiToken>(e =>
+        {
+            e.HasIndex(t => t.Selector).IsUnique();
+            e.HasIndex(t => t.UserId);
         });
 
         modelBuilder.Entity<VocabList>(e =>

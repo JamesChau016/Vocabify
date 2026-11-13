@@ -21,4 +21,5 @@ public class User
 
     public List<VocabList> Lists { get; set; } = [];
     public List<PasswordResetToken> PasswordResetTokens { get; set; } = [];
+    public List<ApiToken> ApiTokens { get; set; } = [];
 }
