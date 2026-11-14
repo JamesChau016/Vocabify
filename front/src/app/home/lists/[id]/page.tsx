@@ -24,6 +24,8 @@ export default function ListDetailPage() {
   const [editingWordId, setEditingWordId] = useState<string | null>(null);
   const [editTerm, setEditTerm] = useState("");
   const [editDefinition, setEditDefinition] = useState("");
+  const [editSentence, setEditSentence] = useState("");
+  const [editSourceUrl, setEditSourceUrl] = useState("");
   const [wordError, setWordError] = useState<string | null>(null);
   const [wordSaving, setWordSaving] = useState(false);
 
@@ -81,6 +83,8 @@ export default function ListDetailPage() {
     setEditingWordId(word.id);
     setEditTerm(word.term);
     setEditDefinition(word.definition ?? "");
+    setEditSentence(word.sentence ?? "");
+    setEditSourceUrl(word.sourceUrl ?? "");
     setWordError(null);
   };
 
@@ -101,6 +105,8 @@ export default function ListDetailPage() {
       const updated: List = await listService.updateWord(list.id, wordId, {
         term: editTerm.trim(),
         definition: editDefinition.trim() || undefined,
+        sentence: editSentence.trim() || undefined,
+        sourceUrl: editSourceUrl.trim() || undefined,
       });
       setList(updated);
       setEditingWordId(null);
@@ -201,6 +207,27 @@ export default function ListDetailPage() {
                               />
                             </div>
                           </div>
+                          <div className="flex gap-3 items-end">
+                            <div className="flex-1">
+                              <label className="block text-xs font-medium tracking-widest uppercase text-ink-muted mb-1">Sentence</label>
+                              <input
+                                value={editSentence}
+                                onChange={(e) => setEditSentence(e.target.value)}
+                                className="w-full bg-transparent border-b border-border-dark text-ink py-1 text-base focus:outline-none focus:border-accent"
+                                placeholder="Optional context"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <label className="block text-xs font-medium tracking-widest uppercase text-ink-muted mb-1">Source URL</label>
+                              <input
+                                type="url"
+                                value={editSourceUrl}
+                                onChange={(e) => setEditSourceUrl(e.target.value)}
+                                className="w-full bg-transparent border-b border-border-dark text-ink py-1 text-base focus:outline-none focus:border-accent"
+                                placeholder="Optional"
+                              />
+                            </div>
+                          </div>
                           {wordError && (
                             <p className="text-xs text-accent" role="alert">{wordError}</p>
                           )}
@@ -223,11 +250,17 @@ export default function ListDetailPage() {
                       ) : (
                         <div
                           key={word.id}
-                          className="flex items-baseline justify-between border-b border-border py-3 group"
+                          className="flex justify-between border-b border-border py-3 group"
                         >
-                          <span className="font-serif text-lg font-semibold text-ink">
-                            {word.term}
-                          </span>
+                          <div>
+                            <span className="font-serif text-lg font-semibold text-ink">{word.term}</span>
+                            {word.sentence && <p className="text-sm text-ink-muted mt-1">{word.sentence}</p>}
+                            {word.sourceUrl && (
+                              <a href={word.sourceUrl} target="_blank" rel="noreferrer" className="text-xs text-accent mt-1 inline-block">
+                                View source
+                              </a>
+                            )}
+                          </div>
                           <div className="flex items-baseline gap-4 ml-6">
                             {word.definition && (
                               <span className="text-sm text-ink-light">

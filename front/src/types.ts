@@ -29,6 +29,8 @@ export interface Word {
   id: string;
   term: string;
   definition?: string;
+  sentence?: string;
+  sourceUrl?: string;
 }
 
 export interface ReviewState {
