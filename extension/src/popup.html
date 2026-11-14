@@ -28,12 +28,16 @@
 
       <section id="capture-view" hidden>
         <p id="account" class="account"></p>
-        <label for="list-id">Your list ID</label>
-        <input id="list-id" type="text" placeholder="Paste a list ID">
+        <label for="list-id">Destination list</label>
+        <select id="list-id"></select>
         <label for="term">Word</label>
         <input id="term" type="text" maxlength="200" placeholder="e.g. sobremesa">
         <label for="definition">Definition <span class="optional">optional</span></label>
         <textarea id="definition" rows="3" maxlength="2000" placeholder="Meaning or translation"></textarea>
+        <label for="sentence">Sentence <span class="optional">optional</span></label>
+        <textarea id="sentence" rows="3" maxlength="4000" placeholder="Sentence containing the word"></textarea>
+        <label for="source-url">Source URL <span class="optional">optional</span></label>
+        <input id="source-url" type="url" maxlength="2048">
         <button id="save-word" type="button">Save word</button>
         <button id="disconnect" class="secondary" type="button">Disconnect</button>
       </section>

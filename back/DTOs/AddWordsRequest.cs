@@ -11,4 +11,10 @@ public record AddWordItem
 
     [StringLength(2000)]
     public string? Definition { get; init; }
+
+    [StringLength(4000)]
+    public string? Sentence { get; init; }
+
+    [StringLength(2048)]
+    public string? SourceUrl { get; init; }
 }

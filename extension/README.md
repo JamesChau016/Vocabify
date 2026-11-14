@@ -3,7 +3,8 @@
 This folder contains a standalone Chrome Manifest V3 extension. The TypeScript auth
 module in `src/auth.ts` connects with a Vocabify capture token, validates it with
 `GET /api/auth/me`, stores it in extension-local storage, and uses it to add words to
-a list owned by the user. `src/popup.ts` implements the popup interface.
+a list owned by the user. Captures are committed to IndexedDB first, then synchronized
+by the background worker when the API is reachable.
 
 Create and revoke tokens from the signed-in Vocabify app at `/settings/tokens`. The
 extension links to that page because token management requires the app's cookie
@@ -28,5 +29,7 @@ In Chrome, open `chrome://extensions`, enable Developer mode, and choose **Load
 unpacked** with the `dist/` directory. Add the extension ID shown there to the API's
 `App:ExtensionOrigins` setting and reload the extension.
 
-Capture tokens can add words only to lists owned by their user. In the popup, paste
-the target list ID and enter a word with an optional definition.
+Capture tokens can add words only to lists owned by their user. Open the popup from
+a page to prefill the selected word, its surrounding sentence, and the source URL.
+Choose a cached destination list and save; pending captures retry automatically after
+an offline period.

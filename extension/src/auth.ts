@@ -1,6 +1,7 @@
 const TOKEN_KEY = "vocabify.captureToken";
 const API_KEY = "vocabify.apiBaseUrl";
 const WEB_KEY = "vocabify.webBaseUrl";
+const USER_KEY = "vocabify.user";
 
 export const DEFAULT_API_URL = "http://localhost:3006/";
 export const DEFAULT_WEB_URL = "http://localhost:3000/";
@@ -50,7 +51,7 @@ export async function connectCaptureToken(
   if (!granted) throw new Error("Allow access to your Vocabify API to connect.");
 
   const user = await request<VocabifyUser>(apiBaseUrl, "api/auth/me", token);
-  await chrome.storage.local.set({ [TOKEN_KEY]: token, [API_KEY]: apiBaseUrl, [WEB_KEY]: webBaseUrl });
+  await chrome.storage.local.set({ [TOKEN_KEY]: token, [API_KEY]: apiBaseUrl, [WEB_KEY]: webBaseUrl, [USER_KEY]: user });
   return user;
 }
 
@@ -70,6 +71,7 @@ export async function validateConnection(): Promise<{ connection: StoredConnecti
   if (!connection) return null;
   try {
     const user = await request<VocabifyUser>(connection.apiBaseUrl, "api/auth/me", connection.token);
+    await chrome.storage.local.set({ [USER_KEY]: user });
     return { connection, user };
   } catch (error) {
     if (error instanceof ApiRequestError && error.status === 401) {
@@ -80,7 +82,13 @@ export async function validateConnection(): Promise<{ connection: StoredConnecti
 }
 
 export async function disconnect(): Promise<void> {
-  await chrome.storage.local.remove([TOKEN_KEY, API_KEY, WEB_KEY]);
+  await chrome.storage.local.remove([TOKEN_KEY, API_KEY, WEB_KEY, USER_KEY]);
+}
+
+export async function readCachedUser(): Promise<VocabifyUser | null> {
+  const stored = await chrome.storage.local.get([USER_KEY]);
+  const user = stored[USER_KEY];
+  return user && typeof user === "object" ? user as VocabifyUser : null;
 }
 
 export async function addWordToList(
@@ -101,7 +109,7 @@ export async function addWordToList(
   );
 }
 
-async function request<T>(
+export async function request<T>(
   baseUrl: string,
   path: string,
   token: string,

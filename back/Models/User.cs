@@ -19,6 +19,8 @@ public class User
     public string? OAuthProvider { get; set; }
     public string? OAuthId { get; set; }
 
+    public long SyncVersion { get; set; }
+
     public List<VocabList> Lists { get; set; } = [];
     public List<PasswordResetToken> PasswordResetTokens { get; set; } = [];
     public List<ApiToken> ApiTokens { get; set; } = [];

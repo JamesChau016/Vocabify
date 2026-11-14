@@ -4,9 +4,12 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "test": "npm run build && node --test test/*.test.mjs"
   },
   "devDependencies": {
-    "typescript": "~5.9.3"
+    "fake-indexeddb": "^6.2.8",
+    "typescript": "~5.9.3",
+    "vitest": "^5.1.0"
   }
 }

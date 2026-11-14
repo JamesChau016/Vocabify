@@ -11,4 +11,5 @@ public record RateLimitPolicy(string Prefix, int MaxRequests, TimeSpan Window)
     public static readonly RateLimitPolicy ForgotPassword = new("forgot-pw", 3, TimeSpan.FromHours(1));
     public static readonly RateLimitPolicy ResetPassword = new("reset-pw", 5, TimeSpan.FromHours(1));
     public static readonly RateLimitPolicy Review = new("review", 120, TimeSpan.FromMinutes(15));
+    public static readonly RateLimitPolicy Sync = new("sync", 240, TimeSpan.FromMinutes(15));
 }

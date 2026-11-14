@@ -7,6 +7,10 @@
     "default_popup": "popup.html",
     "default_title": "Vocabify Capture"
   },
-  "permissions": ["storage"],
+  "permissions": ["storage", "alarms", "activeTab", "scripting"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
   "optional_host_permissions": ["http://*/*", "https://*/*"]
 }

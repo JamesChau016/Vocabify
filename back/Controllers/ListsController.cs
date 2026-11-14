@@ -6,6 +6,7 @@ using Vocabify.Data;
 using Vocabify.DTOs;
 using Vocabify.Models;
 using Vocabify.Services;
+using System.Text.Json;
 
 namespace Vocabify.Controllers;
 
@@ -15,11 +16,13 @@ public class ListsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ListCacheService _cache;
+    private readonly SyncService _sync;
 
-    public ListsController(AppDbContext db, ListCacheService cache)
+    public ListsController(AppDbContext db, ListCacheService cache, SyncService sync)
     {
         _db = db;
         _cache = cache;
+        _sync = sync;
     }
 
     [HttpGet]
@@ -145,20 +148,22 @@ public class ListsController : ControllerBase
                 return BadRequest(new { error = $"Word at index {i} has a Definition exceeding 2000 characters.", index = i, term = item.Term });
         }
 
-        // all Words are valid; append them in submission order.
-        foreach (var item in items)
-        {
-            list.Words.Add(new Word
+        var editedAt = DateTimeOffset.UtcNow;
+        var operations = items.Select(item => new SyncOperationRequest(
+            Guid.CreateVersion7(), Guid.CreateVersion7(), list.Id, editedAt, false,
+            new Dictionary<string, JsonElement>
             {
-                Term = item.Term,
-                Definition = item.Definition,
-                VocabListId = list.Id
-            });
-        }
+                ["term"] = JsonSerializer.SerializeToElement(item.Term),
+                ["definition"] = JsonSerializer.SerializeToElement(item.Definition),
+                ["sentence"] = JsonSerializer.SerializeToElement(item.Sentence),
+                ["sourceUrl"] = JsonSerializer.SerializeToElement(item.SourceUrl)
+            })).ToList();
+        await _sync.PushAsync(userId.Value, operations);
 
-        await _db.SaveChangesAsync();
+        await Task.WhenAll(_cache.InvalidateAllListsAsync(), _cache.InvalidateListAsync(id));
 
-        await _cache.InvalidateListAsync(id);
+        _db.ChangeTracker.Clear();
+        list = await _db.VocabLists.Include(l => l.User).Include(l => l.Words).SingleAsync(l => l.Id == id);
 
         // return the updated Vocab_List including all of its Words.
         return Created($"/api/lists/{list.Id}", ToResponse(list));
@@ -219,6 +224,17 @@ public class ListsController : ControllerBase
         if (list.UserId != user.Id)
             return Unauthorized(new { error = "You are not allowed to delete this list." });
 
+        var wordIds = await _db.Words.IgnoreQueryFilters()
+            .Where(word => word.VocabListId == id && !word.IsDeleted)
+            .Select(word => word.Id)
+            .ToListAsync();
+        foreach (var batch in wordIds.Chunk(SyncService.MaxBatchSize))
+        {
+            var deletedAt = DateTimeOffset.UtcNow;
+            await _sync.PushAsync(userId.Value, batch.Select(wordId =>
+                new SyncOperationRequest(Guid.CreateVersion7(), wordId, id, deletedAt, true, null)).ToList());
+        }
+
         _db.VocabLists.Remove(list);
         await _db.SaveChangesAsync();
 
@@ -247,11 +263,20 @@ public class ListsController : ControllerBase
         var word = list.Words.FirstOrDefault(w => w.Id == wordId);
         if (word is null) return NotFound(new { error = "Word not found." });
 
-        word.Term = request.Term;
-        word.Definition = request.Definition;
-        await _db.SaveChangesAsync();
+        var fields = new Dictionary<string, JsonElement>
+        {
+            ["term"] = JsonSerializer.SerializeToElement(request.Term),
+            ["definition"] = JsonSerializer.SerializeToElement(request.Definition),
+            ["sentence"] = JsonSerializer.SerializeToElement(request.Sentence),
+            ["sourceUrl"] = JsonSerializer.SerializeToElement(request.SourceUrl)
+        };
+        await _sync.PushAsync(userId.Value,
+            [new SyncOperationRequest(Guid.CreateVersion7(), wordId, listId, DateTimeOffset.UtcNow, false, fields)]);
 
-        await _cache.InvalidateListAsync(listId);
+        await Task.WhenAll(_cache.InvalidateAllListsAsync(), _cache.InvalidateListAsync(listId));
+
+        _db.ChangeTracker.Clear();
+        list = await _db.VocabLists.Include(l => l.User).Include(l => l.Words).SingleAsync(l => l.Id == listId);
 
         return Ok(ToResponse(list));
     }
@@ -273,10 +298,10 @@ public class ListsController : ControllerBase
         var word = list.Words.FirstOrDefault(w => w.Id == wordId);
         if (word is null) return NotFound(new { error = "Word not found." });
 
-        _db.Words.Remove(word);
-        await _db.SaveChangesAsync();
+        await _sync.PushAsync(userId.Value,
+            [new SyncOperationRequest(Guid.CreateVersion7(), wordId, listId, DateTimeOffset.UtcNow, true, null)]);
 
-        await _cache.InvalidateListAsync(listId);
+        await Task.WhenAll(_cache.InvalidateAllListsAsync(), _cache.InvalidateListAsync(listId));
 
         return NoContent();
     }
@@ -294,6 +319,6 @@ public class ListsController : ControllerBase
         l.Description,
         l.DateCreated,
         new ListUserResponse(l.User.Username, l.User.Name),
-        l.Words.Select(w => new WordResponse(w.Id, w.Term, w.Definition)).ToList()
+        l.Words.Select(w => new WordResponse(w.Id, w.Term, w.Definition, w.Sentence, w.SourceUrl)).ToList()
     );
 }

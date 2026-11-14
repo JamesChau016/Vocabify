@@ -1,15 +1,19 @@
 import {
-  addWordToList,
   ApiRequestError,
   connectCaptureToken,
   DEFAULT_API_URL,
   DEFAULT_WEB_URL,
   disconnect,
   normalizeBaseUrl,
+  readCachedUser,
+  readConnection,
   validateConnection,
   type ConnectionSettings,
   type VocabifyUser,
 } from "./auth.js";
+import { clearLocalData, enqueueCapture, getCachedLists, type CachedList } from "./db.js";
+import { refreshOwnedLists, syncNow } from "./sync.js";
+import { uuidv7 } from "./uuid.js";
 
 const connectView = element<HTMLElement>("connect-view");
 const captureView = element<HTMLElement>("capture-view");
@@ -78,6 +82,7 @@ async function connect(): Promise<void> {
     const user = await connectCaptureToken(settings.apiBaseUrl, settings.webBaseUrl, tokenInput.value);
     tokenInput.value = "";
     showCapture(user, settings);
+    await populateLists(await refreshOwnedLists());
     setStatus("Connected.");
   } catch (error) {
     setStatus(errorMessage(error, "Could not connect."), true);
@@ -88,6 +93,7 @@ async function connect(): Promise<void> {
 
 async function disconnectFromPopup(): Promise<void> {
   await disconnect();
+  await clearLocalData();
   showConnect();
   setStatus("Disconnected.");
 }
@@ -97,15 +103,33 @@ async function saveWord(): Promise<void> {
   button.disabled = true;
   setStatus("Saving word…");
   try {
-    const listId = element<HTMLInputElement>("list-id").value.trim();
+    const listId = element<HTMLSelectElement>("list-id").value;
     const term = element<HTMLInputElement>("term").value.trim();
     const definition = element<HTMLTextAreaElement>("definition").value.trim();
-    if (!listId) throw new Error("Enter the ID of one of your lists.");
+    const sentence = element<HTMLTextAreaElement>("sentence").value.trim();
+    const sourceUrl = element<HTMLInputElement>("source-url").value.trim();
+    if (!listId) throw new Error("Choose a destination list while online first.");
     if (!term) throw new Error("Enter a word to save.");
-    await addWordToList(listId, term, definition);
+    if (term.length > 200) throw new Error("Word must be 200 characters or fewer.");
+    if (definition.length > 2000) throw new Error("Definition must be 2,000 characters or fewer.");
+    if (sentence.length > 4000) throw new Error("Sentence must be 4,000 characters or fewer.");
+    if (sourceUrl.length > 2048) throw new Error("Source URL must be 2,048 characters or fewer.");
+    if (sourceUrl && !/^https?:\/\//i.test(sourceUrl)) throw new Error("Source URL must use HTTP or HTTPS.");
+    const wordId = uuidv7();
+    const operationId = uuidv7();
+    await enqueueCapture({
+      operationId, wordId, listId, editedAt: new Date().toISOString(), deleted: false,
+      fields: { term, definition: definition || null, sentence: sentence || null, sourceUrl: sourceUrl || null },
+    }, { id: wordId, listId, term, definition: definition || null, sentence: sentence || null, sourceUrl: sourceUrl || null, deleted: false });
     element<HTMLInputElement>("term").value = "";
     element<HTMLTextAreaElement>("definition").value = "";
-    setStatus("Word saved to your list.");
+    element<HTMLTextAreaElement>("sentence").value = "";
+    try {
+      await syncNow();
+      setStatus("Word saved and synced.");
+    } catch {
+      setStatus("Word saved offline. It will sync automatically.");
+    }
   } catch (error) {
     setStatus(errorMessage(error, "Could not save word."), true);
   } finally {
@@ -118,20 +142,65 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 async function initialize(): Promise<void> {
+  const connection = await readConnection();
+  const cachedUser = await readCachedUser();
+  if (!connection || !cachedUser) { showConnect(); return; }
+  showCapture(cachedUser, connection);
+  await populateLists(await getCachedLists());
+  await prefillFromPage();
   try {
     const current = await validateConnection();
-    if (!current) {
-      showConnect();
-      return;
-    }
-    showCapture(current.user, current.connection);
+    if (!current) return;
+    await populateLists(await refreshOwnedLists());
+    await syncNow();
   } catch (error) {
-    showConnect();
-    const message = error instanceof ApiRequestError && error.status === 401
-      ? "Reconnect with an active token."
-      : "Could not reach the API. Check the URL and try again.";
-    setStatus(message, true);
+    if (error instanceof ApiRequestError && error.status === 401) {
+      await clearLocalData();
+      showConnect();
+      setStatus("Reconnect with an active token.", true);
+    } else {
+      setStatus("Offline capture is ready. Pending words will sync automatically.");
+    }
   }
+}
+
+async function populateLists(lists: CachedList[]): Promise<void> {
+  const select = element<HTMLSelectElement>("list-id");
+  const previous = select.value;
+  select.replaceChildren();
+  for (const list of lists) {
+    const option = document.createElement("option");
+    option.value = list.id;
+    option.textContent = list.name;
+    select.append(option);
+  }
+  if (lists.some(list => list.id === previous)) select.value = previous;
+}
+
+async function prefillFromPage(): Promise<void> {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) return;
+    const [capture] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        const selection = window.getSelection();
+        const selected = selection?.toString().trim() ?? "";
+        const context = selection?.anchorNode?.parentElement?.textContent?.trim() ?? selected;
+        const escaped = selected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const sentence = selected ? (context.match(new RegExp(`[^.!?]*${escaped}[^.!?]*[.!?]?`, "i"))?.[0].trim() ?? context) : "";
+        return {
+          selected: selected.slice(0, 200),
+          sentence: sentence.slice(0, 4000),
+          sourceUrl: /^https?:$/i.test(location.protocol) ? location.href.slice(0, 2048) : "",
+        };
+      },
+    });
+    if (!capture.result) return;
+    element<HTMLInputElement>("term").value = capture.result.selected;
+    element<HTMLTextAreaElement>("sentence").value = capture.result.sentence;
+    element<HTMLInputElement>("source-url").value = capture.result.sourceUrl;
+  } catch { /* Browser internal pages cannot be inspected. */ }
 }
 
 void initialize();
