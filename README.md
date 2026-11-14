@@ -77,6 +77,30 @@ docker compose down        # stop containers, keep data
 docker compose down -v     # stop containers and wipe all data
 ```
 
+### PostgreSQL password authentication errors
+
+If the API or `dotnet ef` reports `28P01: password authentication failed for user
+"vocabify"`, the credentials stored in the existing Docker volume may not match the
+current connection string. PostgreSQL applies `POSTGRES_USER` and `POSTGRES_PASSWORD`
+only when it initializes an empty data directory; restarting or recreating the container
+does not update the password in an existing `pgdata` volume.
+
+To keep the existing data, reset the role password to the development value configured in
+`back/docker-compose.yml`:
+
+```bash
+docker exec vocabify-postgres psql -U vocabify -d vocabify -c "ALTER USER vocabify WITH PASSWORD 'vocabify';"
+```
+
+If the local database is disposable, recreate it from the current Compose configuration:
+
+```bash
+cd back
+docker compose down -v     # permanently deletes the local PostgreSQL data
+docker compose up -d
+dotnet ef database update
+```
+
 ## Features
 
 - **Accounts** — register with username, display name, optional email, and password; or sign

@@ -31,7 +31,7 @@ docker compose up -d
 
 | Container | Port | Purpose |
 |-----------|------|---------|
-| `vocabify-postgres` | 5433 | Primary database |
+| `vocabify-postgres` | 5432 | Primary database |
 | `vocabify-redis` | 6379 | Cache + rate limiting |
 | `vocabify-mailhog` | 1025 (SMTP) / 8025 (UI) | Catches outbound email in development |
 
@@ -104,6 +104,30 @@ docker compose down        # stop containers, keep data
 docker compose down -v     # stop containers and wipe all data
 docker compose ps          # check status
 docker compose logs -f     # tail logs
+```
+
+### PostgreSQL password authentication errors
+
+The `pgdata` Docker volume persists PostgreSQL users and passwords across container
+restarts. The `POSTGRES_USER` and `POSTGRES_PASSWORD` values in `docker-compose.yml` are
+used only when PostgreSQL initializes an empty data directory. Updating those values, or
+recreating only the container, does not change the password in an existing volume.
+
+If the API or `dotnet ef` reports `28P01: password authentication failed for user
+"vocabify"`, preserve the database and reset the role password to the local development
+value with:
+
+```bash
+docker exec vocabify-postgres psql -U vocabify -d vocabify -c "ALTER USER vocabify WITH PASSWORD 'vocabify';"
+```
+
+Then retry the API or EF command. If the local data is not needed, recreate the volume
+instead:
+
+```bash
+docker compose down -v     # permanently deletes the local PostgreSQL data
+docker compose up -d
+dotnet ef database update
 ```
 
 ## Project Structure
@@ -269,7 +293,7 @@ When a Bearer header is present on a capture route, it takes precedence over the
 ```jsonc
 {
   "ConnectionStrings": {
-    "Postgres": "Host=localhost;Port=5433;Database=vocabify;Username=vocabify;Password=vocabify",
+    "Postgres": "Host=localhost;Port=5432;Database=vocabify;Username=vocabify;Password=vocabify",
     "Redis": "localhost:6379"
   },
   "Jwt": {

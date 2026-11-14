@@ -57,10 +57,17 @@ function result<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
-export async function enqueueCapture(operation: PendingOperation, word: LocalWord): Promise<void> {
-  await transaction(["words", "operations"], "readwrite", async tx => {
+export async function enqueueCapture(operation: PendingOperation, word: LocalWord): Promise<boolean> {
+  return transaction(["words", "operations"], "readwrite", async tx => {
+    const existing = await result(tx.objectStore("words").getAll() as IDBRequest<LocalWord[]>);
+    if (existing.some(saved => !saved.deleted &&
+      saved.listId === word.listId &&
+      saved.term.trim().toLocaleLowerCase() === word.term.trim().toLocaleLowerCase() &&
+      saved.sentence === word.sentence &&
+      saved.sourceUrl === word.sourceUrl)) return false;
     tx.objectStore("words").put(word);
     tx.objectStore("operations").put(operation);
+    return true;
   });
 }
 

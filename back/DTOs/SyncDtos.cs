@@ -11,7 +11,7 @@ public record SyncOperationRequest(
     bool Deleted,
     Dictionary<string, JsonElement>? Fields);
 
-public record SyncPushRequest([property: Required] List<SyncOperationRequest> Operations);
+public record SyncPushRequest([param: Required] List<SyncOperationRequest> Operations);
 
 public record SyncPushResponse(List<Guid> AcknowledgedOperationIds, long Cursor);
 

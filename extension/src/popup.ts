@@ -117,10 +117,15 @@ async function saveWord(): Promise<void> {
     if (sourceUrl && !/^https?:\/\//i.test(sourceUrl)) throw new Error("Source URL must use HTTP or HTTPS.");
     const wordId = uuidv7();
     const operationId = uuidv7();
-    await enqueueCapture({
+    const queued = await enqueueCapture({
       operationId, wordId, listId, editedAt: new Date().toISOString(), deleted: false,
       fields: { term, definition: definition || null, sentence: sentence || null, sourceUrl: sourceUrl || null },
     }, { id: wordId, listId, term, definition: definition || null, sentence: sentence || null, sourceUrl: sourceUrl || null, deleted: false });
+    if (!queued) {
+      setStatus("This capture is already saved to that list.");
+      void syncNow().catch(() => undefined);
+      return;
+    }
     element<HTMLInputElement>("term").value = "";
     element<HTMLTextAreaElement>("definition").value = "";
     element<HTMLTextAreaElement>("sentence").value = "";
