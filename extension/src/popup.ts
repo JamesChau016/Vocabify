@@ -15,6 +15,7 @@ import { clearLocalData, enqueueCapture, getCachedLists, type CachedList } from 
 import { refreshOwnedLists, syncNow } from "./sync.js";
 import { uuidv7 } from "./uuid.js";
 import { normalizeTerm } from "./normalize.js";
+import { formatDefinition, lookupWord, suggestWords } from "./dictionary.js";
 
 const connectView = element<HTMLElement>("connect-view");
 const captureView = element<HTMLElement>("capture-view");
@@ -24,12 +25,131 @@ const tokenInput = element<HTMLInputElement>("token");
 const manageLink = element<HTMLAnchorElement>("manage-link");
 const status = element<HTMLElement>("status");
 const account = element<HTMLElement>("account");
+const termInput = element<HTMLInputElement>("term");
+const definitionInput = element<HTMLTextAreaElement>("definition");
+const suggestionsList = element<HTMLUListElement>("word-suggestions");
+const autoTag = element<HTMLElement>("definition-auto");
+let suggestions: string[] = [];
+let highlightedIndex = 0;
+let suggestionTimer: ReturnType<typeof setTimeout> | undefined;
+let suggestionController: AbortController | undefined;
+let lookupController: AbortController | undefined;
+let termRevision = 0;
 
 element<HTMLButtonElement>("connect").addEventListener("click", connect);
 element<HTMLButtonElement>("disconnect").addEventListener("click", disconnectFromPopup);
 element<HTMLButtonElement>("save-word").addEventListener("click", saveWord);
 apiInput.addEventListener("input", updateManageLink);
 webInput.addEventListener("input", updateManageLink);
+termInput.addEventListener("input", handleTermInput);
+termInput.addEventListener("keydown", handleTermKeyDown);
+termInput.addEventListener("blur", () => {
+  setTimeout(closeSuggestions, 150);
+  if (!definitionInput.value.trim() && !suggestionsList.contains(document.activeElement)) {
+    void fillDefinition(termInput.value, termRevision);
+  }
+});
+definitionInput.addEventListener("input", () => { autoTag.hidden = true; });
+
+function cancelSuggestions(): void {
+  if (suggestionTimer) clearTimeout(suggestionTimer);
+  suggestionController?.abort();
+  suggestionController = undefined;
+}
+
+function closeSuggestions(): void {
+  suggestions = [];
+  suggestionsList.replaceChildren();
+  suggestionsList.hidden = true;
+  termInput.setAttribute("aria-expanded", "false");
+  termInput.removeAttribute("aria-activedescendant");
+}
+
+function showSuggestions(words: string[]): void {
+  suggestions = words;
+  highlightedIndex = 0;
+  suggestionsList.replaceChildren();
+  words.forEach((word, index) => {
+    const item = document.createElement("li");
+    item.id = `suggestion-${index}`;
+    item.role = "option";
+    item.textContent = word;
+    item.setAttribute("aria-selected", String(index === 0));
+    item.addEventListener("mousedown", event => {
+      event.preventDefault();
+      void selectSuggestion(word);
+    });
+    suggestionsList.append(item);
+  });
+  suggestionsList.hidden = words.length === 0;
+  termInput.setAttribute("aria-expanded", String(words.length > 0));
+  if (words.length > 0) termInput.setAttribute("aria-activedescendant", "suggestion-0");
+}
+
+function highlightSuggestion(index: number): void {
+  highlightedIndex = index;
+  Array.from(suggestionsList.children).forEach((item, itemIndex) =>
+    item.setAttribute("aria-selected", String(itemIndex === index)));
+  termInput.setAttribute("aria-activedescendant", `suggestion-${index}`);
+  suggestionsList.children[index]?.scrollIntoView({ block: "nearest" });
+}
+
+function handleTermInput(): void {
+  termRevision++;
+  cancelSuggestions();
+  lookupController?.abort();
+  closeSuggestions();
+  if (!autoTag.hidden) definitionInput.value = "";
+  autoTag.hidden = true;
+  if (termInput.value.trim().length < 2) return;
+  const revision = termRevision;
+  suggestionController = new AbortController();
+  const controller = suggestionController;
+  suggestionTimer = setTimeout(async () => {
+    const words = await suggestWords(termInput.value, controller.signal);
+    if (revision === termRevision && !controller.signal.aborted && document.activeElement === termInput)
+      showSuggestions(words);
+  }, 400);
+}
+
+function handleTermKeyDown(event: KeyboardEvent): void {
+  if (suggestionsList.hidden || suggestions.length === 0) return;
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    highlightSuggestion((highlightedIndex + (event.key === "ArrowDown" ? 1 : -1) + suggestions.length) % suggestions.length);
+  } else if (event.key === "Enter") {
+    event.preventDefault();
+    void selectSuggestion(suggestions[highlightedIndex]);
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    closeSuggestions();
+  }
+}
+
+async function selectSuggestion(word: string): Promise<void> {
+  termRevision++;
+  cancelSuggestions();
+  lookupController?.abort();
+  closeSuggestions();
+  termInput.value = word;
+  await fillDefinition(word, termRevision);
+}
+
+async function fillDefinition(word: string, revision: number): Promise<void> {
+  if (!word.trim() || definitionInput.value.trim()) return;
+  lookupController?.abort();
+  const controller = new AbortController();
+  lookupController = controller;
+  definitionInput.placeholder = "Looking up definition...";
+  const result = await lookupWord(word, controller.signal);
+  if (lookupController === controller) {
+    definitionInput.placeholder = "Meaning or translation";
+    lookupController = undefined;
+  }
+  if (!result || controller.signal.aborted || revision !== termRevision || definitionInput.value.trim()) return;
+  definitionInput.value = formatDefinition(result);
+  autoTag.hidden = false;
+}
 
 function element<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -108,15 +228,17 @@ async function disconnectFromPopup(): Promise<void> {
 }
 
 async function saveWord(): Promise<void> {
+  cancelSuggestions();
+  lookupController?.abort();
+  closeSuggestions();
   const button = element<HTMLButtonElement>("save-word");
   button.disabled = true;
   setStatus("Saving word…", "info");
   try {
     const listId = element<HTMLSelectElement>("list-id").value;
-    const termInput = element<HTMLInputElement>("term");
     const term = normalizeTerm(termInput.value);
     termInput.value = term;
-    const definition = element<HTMLTextAreaElement>("definition").value.trim();
+    const definition = definitionInput.value.trim();
     const sentence = element<HTMLTextAreaElement>("sentence").value.trim();
     const sourceUrl = element<HTMLInputElement>("source-url").value.trim();
     if (!listId) throw new Error("Choose a destination list while online first.");
@@ -139,6 +261,7 @@ async function saveWord(): Promise<void> {
     }
     element<HTMLInputElement>("term").value = "";
     element<HTMLTextAreaElement>("definition").value = "";
+    autoTag.hidden = true;
     element<HTMLTextAreaElement>("sentence").value = "";
     try {
       await syncNow();
@@ -213,9 +336,10 @@ async function prefillFromPage(): Promise<void> {
       },
     });
     if (!capture.result) return;
-    element<HTMLInputElement>("term").value = capture.result.selected;
+    termInput.value = capture.result.selected;
     element<HTMLTextAreaElement>("sentence").value = capture.result.sentence;
     element<HTMLInputElement>("source-url").value = capture.result.sourceUrl;
+    if (capture.result.selected) void fillDefinition(capture.result.selected, termRevision);
   } catch { /* Browser internal pages cannot be inspected. */ }
 }
 

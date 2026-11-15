@@ -37,6 +37,11 @@ button.secondary:hover { background: #edf0eb; color: #29473f; }
 a { display: inline-block; margin-top: 13px; color: #24624e; font-size: 12px; font-weight: 650; }
 .account { overflow: hidden; margin: 0 0 14px; padding: 7px 9px; border-radius: 7px; background: #edf3ef; color: #345a4e; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .optional { color: #84918c; font-weight: 450; }
+.auto-tag { margin-left: 6px; padding: 2px 6px; border-radius: 4px; background: #e4f3ec; color: #24624e; font-size: 10px; font-weight: 700; }
+.word-picker { position: relative; }
+#word-suggestions { position: absolute; z-index: 2; top: calc(100% + 3px); right: 0; left: 0; max-height: 190px; overflow-y: auto; margin: 0; padding: 4px; border: 1px solid #c9cec8; border-radius: 8px; background: #fff; box-shadow: 0 10px 20px rgba(36,63,55,.14); list-style: none; }
+#word-suggestions li { padding: 8px 10px; border-radius: 5px; color: #19312c; cursor: pointer; font-size: 13px; }
+#word-suggestions li:hover, #word-suggestions li[aria-selected="true"] { background: #e4f3ec; color: #15583f; }
 .notice { position: relative; margin-top: 16px; padding: 13px 14px 13px 39px; border: 1px solid #b9c9c2; border-radius: 9px; background: #eaf3ef; color: #204d3e; font-size: 13px; font-weight: 680; line-height: 1.45; box-shadow: 0 7px 18px rgba(36,63,55,.10); }
 .notice::before { position: absolute; top: 12px; left: 13px; width: 18px; height: 18px; border-radius: 50%; background: currentColor; content: ""; opacity: .16; }
 .notice[data-kind="success"] { border-color: #86b8a4; background: #e4f3ec; color: #15583f; }

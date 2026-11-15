@@ -33,3 +33,9 @@ Capture tokens can add words only to lists owned by their user. Open the popup f
 a page to prefill the selected word, its surrounding sentence, and the source URL.
 Choose a cached destination list and save; pending captures retry automatically after
 an offline period.
+
+While online, typing at least two characters in the word field shows up to eight
+suggestions. Selecting one fills the first English dictionary definition, which you
+can edit before saving. Leaving the word field with no definition also attempts a
+lookup. Dictionary access is optional for capture: when offline or no match exists,
+enter a definition manually or save the word without one.

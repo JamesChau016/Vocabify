@@ -8,6 +8,7 @@
     "default_title": "Vocabify Capture"
   },
   "permissions": ["storage", "alarms", "activeTab", "scripting"],
+  "host_permissions": ["https://api.datamuse.com/*", "https://api.dictionaryapi.dev/*"],
   "background": {
     "service_worker": "background.js",
     "type": "module"
