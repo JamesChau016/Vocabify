@@ -55,6 +55,12 @@ export default function Header() {
           </Link>
         ) : (
           <div className="flex items-center gap-3">
+            <Link
+              href="/settings/tokens"
+              className={`${styles.navLink} text-sm font-medium tracking-widest uppercase text-ink-light no-underline`}
+            >
+              API tokens
+            </Link>
             {logoutError && (
               <span
                 role="alert"

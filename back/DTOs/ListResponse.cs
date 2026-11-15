@@ -1,6 +1,6 @@
 namespace Vocabify.DTOs;
 
-public record WordResponse(Guid Id, string Term, string? Definition);
+public record WordResponse(Guid Id, string Term, string? Definition, string? Sentence, string? SourceUrl);
 
 public record ListUserResponse(string Username, string Name);
 

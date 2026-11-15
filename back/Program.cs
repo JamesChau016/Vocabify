@@ -1,8 +1,10 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using StackExchange.Redis;
 using Vocabify.Data;
 using Vocabify.Services;
 
@@ -37,7 +39,12 @@ if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32)
         "Jwt:Secret must be configured with at least 32 characters.");
 }
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+builder.Services.AddAuthentication("Capture")
+    .AddPolicyScheme("Capture", null, options =>
+    {
+        options.ForwardDefaultSelector = CaptureAccess.SelectScheme;
+    })
+    .AddScheme<AuthenticationSchemeOptions, ApiTokenAuthenticationHandler>(ApiTokenAuthenticationHandler.SchemeName, null)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
@@ -61,8 +68,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+builder.Services.AddAuthorization(options =>
+{
+    options.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder("Capture")
+        .RequireAuthenticatedUser()
+        .RequireAssertion(context =>
+            !context.User.Identities.Any(i => i.AuthenticationType == ApiTokenAuthenticationHandler.SchemeName))
+        .Build();
+    options.AddPolicy("Capture", policy => policy
+        .AddAuthenticationSchemes("Capture")
+        .RequireAuthenticatedUser()
+        .RequireAssertion(context => CaptureAccess.HasScope(context.User)));
+});
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+    ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis")!));
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddScoped<ApiTokenService>();
+builder.Services.AddSingleton<RateLimitService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<ListCacheService>();
+builder.Services.AddScoped<StudyService>();
+builder.Services.AddScoped<SyncService>();
 builder.Services.AddHttpClient();
 builder.Services.AddControllers();
 builder.Services.AddCors();
@@ -92,8 +119,10 @@ app.UseForwardedHeaders();
 // In dev, allow any origin with credentials so tools like Postman / REST clients work directly.
 // In prod, lock this down to your actual domain.
 var allowedOrigin = builder.Configuration["App:PublicUrl"] ?? "http://localhost:3000";
+var extensionOrigins = builder.Configuration.GetSection("App:ExtensionOrigins").Get<string[]>() ?? [];
+var corsOrigins = new[] { allowedOrigin }.Concat(extensionOrigins).ToArray();
 app.UseCors(policy => policy
-    .WithOrigins(allowedOrigin)
+    .WithOrigins(corsOrigins)
     .AllowAnyMethod()
     .AllowAnyHeader()
     .AllowCredentials());

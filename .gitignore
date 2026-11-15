@@ -3,5 +3,7 @@
 */bin
 */obj
 .env
+*/dist/
 
 .claude/settings.local.json
+*/node_modules

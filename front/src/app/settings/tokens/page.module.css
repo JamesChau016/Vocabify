@@ -1,0 +1,21 @@
+.main { max-width: 48rem; margin: 0 auto; padding: 3rem 1.25rem 5rem; }
+.main h1 { font: 700 3rem/1 var(--font-serif); margin: .5rem 0 1rem; }
+.main h2 { font: 700 2rem/1.1 var(--font-serif); margin: 0 0 .75rem; }
+.main p { color: var(--color-ink-light); }
+.eyebrow { color: var(--color-accent) !important; text-transform: uppercase; letter-spacing: .14em; font-size: .75rem; }
+.form { display: grid; gap: .5rem; margin: 2.5rem 0; }
+.form label { font-weight: 600; }
+.formRow { display: flex; gap: .75rem; }
+.formRow input { flex: 1; min-width: 0; border: 1px solid var(--color-border-dark); padding: .75rem; background: white; }
+.main button { background: var(--color-ink); color: var(--color-cream); padding: .75rem 1rem; cursor: pointer; }
+.main button:disabled { opacity: .5; cursor: not-allowed; }
+.secret { border: 1px solid var(--color-accent); background: var(--color-accent-soft); padding: 1.25rem; margin-bottom: 2rem; }
+.secret code { display: block; overflow-wrap: anywhere; background: white; padding: .75rem; margin: 1rem 0; }
+.actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+.error { color: #b91c1c !important; }
+.list { border-top: 1px solid var(--color-border-dark); padding-top: 2rem; }
+.list ul { list-style: none; padding: 0; }
+.list li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; border-bottom: 1px solid var(--color-border); padding: 1rem 0; }
+.list li p { margin: .25rem 0 0; font-size: .875rem; }
+.status { margin-left: .75rem; color: var(--color-accent); font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; }
+@media (max-width: 480px) { .formRow { flex-direction: column; } .list li { align-items: flex-start; flex-direction: column; } }

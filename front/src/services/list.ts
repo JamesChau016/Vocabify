@@ -36,7 +36,7 @@ const remove = async (id: string) => {
 const updateWord = async (
   listId: string,
   wordId: string,
-  word: { term: string; definition?: string }
+  word: { term: string; definition?: string; sentence?: string; sourceUrl?: string }
 ) => {
   const response = await axios.put(`${baseUrl}/${listId}/words/${wordId}`, word);
   return response.data;

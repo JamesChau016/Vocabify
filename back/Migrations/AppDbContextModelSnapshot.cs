@@ -22,6 +22,50 @@ namespace Vocabify.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Vocabify.Models.ApiToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SecretHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Selector")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Selector")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ApiTokens");
+                });
+
             modelBuilder.Entity("Vocabify.Models.PasswordResetToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -51,6 +95,125 @@ namespace Vocabify.Migrations
                     b.ToTable("PasswordResetTokens");
                 });
 
+            modelBuilder.Entity("Vocabify.Models.ReviewLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("EaseFactorBefore")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Grade")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("IntervalBefore")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RepetitionsBefore")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("WordId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WordId");
+
+                    b.HasIndex("UserId", "WordId", "ReviewedAt");
+
+                    b.ToTable("ReviewLogs");
+                });
+
+            modelBuilder.Entity("Vocabify.Models.ReviewState", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("WordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("DueAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("EaseFactor")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Interval")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Repetitions")
+                        .HasColumnType("integer");
+
+                    b.HasKey("UserId", "WordId");
+
+                    b.HasIndex("WordId");
+
+                    b.ToTable("ReviewStates");
+                });
+
+            modelBuilder.Entity("Vocabify.Models.SyncChange", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("ChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Definition")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ListId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Sentence")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Term")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("WordId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("UserId", "Version");
+
+                    b.HasIndex("UserId", "WordId");
+
+                    b.ToTable("SyncChanges");
+                });
+
+            modelBuilder.Entity("Vocabify.Models.SyncOperationReceipt", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId", "OperationId");
+
+                    b.ToTable("SyncOperationReceipts");
+                });
+
             modelBuilder.Entity("Vocabify.Models.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -73,6 +236,10 @@ namespace Vocabify.Migrations
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<long>("SyncVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Username")
                         .IsRequired()
@@ -125,9 +292,48 @@ namespace Vocabify.Migrations
                     b.Property<string>("Definition")
                         .HasColumnType("text");
 
+                    b.Property<Guid>("DefinitionOperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("DefinitionUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeleteOperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Sentence")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("SentenceOperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("SentenceUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SourceUrl")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("SourceUrlOperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("SourceUrlUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Term")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<Guid>("TermOperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("TermUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("VocabListId")
                         .HasColumnType("uuid");
@@ -139,6 +345,17 @@ namespace Vocabify.Migrations
                     b.ToTable("Words");
                 });
 
+            modelBuilder.Entity("Vocabify.Models.ApiToken", b =>
+                {
+                    b.HasOne("Vocabify.Models.User", "User")
+                        .WithMany("ApiTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Vocabify.Models.PasswordResetToken", b =>
                 {
                     b.HasOne("Vocabify.Models.User", "User")
@@ -148,6 +365,62 @@ namespace Vocabify.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Vocabify.Models.ReviewLog", b =>
+                {
+                    b.HasOne("Vocabify.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Vocabify.Models.Word", "Word")
+                        .WithMany()
+                        .HasForeignKey("WordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+
+                    b.Navigation("Word");
+                });
+
+            modelBuilder.Entity("Vocabify.Models.ReviewState", b =>
+                {
+                    b.HasOne("Vocabify.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Vocabify.Models.Word", "Word")
+                        .WithMany()
+                        .HasForeignKey("WordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+
+                    b.Navigation("Word");
+                });
+
+            modelBuilder.Entity("Vocabify.Models.SyncChange", b =>
+                {
+                    b.HasOne("Vocabify.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Vocabify.Models.SyncOperationReceipt", b =>
+                {
+                    b.HasOne("Vocabify.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Vocabify.Models.VocabList", b =>
@@ -174,6 +447,8 @@ namespace Vocabify.Migrations
 
             modelBuilder.Entity("Vocabify.Models.User", b =>
                 {
+                    b.Navigation("ApiTokens");
+
                     b.Navigation("Lists");
 
                     b.Navigation("PasswordResetTokens");
