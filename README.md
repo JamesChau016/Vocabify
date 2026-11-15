@@ -1,169 +1,211 @@
 # Vocabify
 
-A vocabulary learning app where users register or sign in with Google/GitHub, create and
-manage vocabulary lists, add word/definition pairs, and study them one at a time.
+Vocabify is a full-stack vocabulary learning app. Users can build and share word lists,
+study with spaced repetition, and capture words from the web with an offline-capable
+Chrome extension.
 
-## Repository layout
+## What is included
 
-| Path | Stack |
-|------|-------|
-| [`back/`](./back) | ASP.NET Core `net10.0`, EF Core, PostgreSQL, Redis, JWT (cookie), BCrypt, MailKit |
-| [`front/`](./front) | Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, axios |
-| [`Vocabify.Tests/`](./Vocabify.Tests) | xUnit test project (backend) |
+| Path | Description |
+| --- | --- |
+| [`back/`](./back) | ASP.NET Core 10 API with EF Core, PostgreSQL, Redis, JWT cookies, OAuth, and MailKit |
+| [`front/`](./front) | Next.js 15 App Router client with React 19 and TypeScript |
+| [`extension/`](./extension) | Chrome Manifest V3 capture extension with IndexedDB-backed offline sync |
+| [`Vocabify.Tests/`](./Vocabify.Tests) | xUnit, SQLite in-memory, and FsCheck backend tests |
 
-The web client runs at `http://localhost:3000` and proxies `/api/*` to the API at
-`http://localhost:3006` via Next.js rewrites. Browsers never talk directly to port 3006.
+The web app runs at <http://localhost:3000>. In development, Next.js proxies `/api/*`
+to the API at <http://localhost:3006>. Mailhog's development inbox is available at
+<http://localhost:8025>.
 
-## Running the app
+## Features
 
-### Prerequisites
+- Local accounts plus Google and GitHub sign-in
+- HttpOnly cookie sessions and email-based password reset
+- Public vocabulary lists with owner-only list and word mutations
+- SM-2 spaced-repetition reviews with timezone-aware due dates
+- Redis caching and request rate limiting
+- Scoped, revocable API tokens for browser-extension capture
+- Offline-first extension capture with idempotent push/pull synchronization
+- Optional English dictionary suggestions in the extension
+
+## Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/)
-- [Node.js 18+](https://nodejs.org/)
+- [Node.js 18 or newer](https://nodejs.org/)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- Chrome or another Chromium browser to use the extension
 
-### 1. Start infrastructure
+## Quick start
+
+### 1. Start PostgreSQL, Redis, and Mailhog
 
 ```bash
 cd back
 docker compose up -d
 ```
 
-Starts PostgreSQL on `:5432`, Redis on `:6379`, and Mailhog on `:1025` (SMTP) / `:8025`
-(web UI — open [http://localhost:8025](http://localhost:8025) to inspect outbound emails in
-development).
+Copy `back/.env.example` to `back/.env` if you need to override the local defaults.
+Do not commit real credentials.
 
-### 2. Start the API
+### 2. Apply database migrations and run the API
 
 ```bash
 cd back
-dotnet run          # http://localhost:3006
+dotnet ef database update
+dotnet run
 ```
 
-EF Core migrations run automatically on startup.
+Migrations do not run automatically at application startup. After pulling a change that
+adds a migration, run `dotnet ef database update` again.
 
-### 3. Start the web client
+To populate optional demo data before starting the server, run:
+
+```bash
+dotnet run -- seed
+```
+
+The seeded accounts are `demo_spanish` and `demo_french`; both use `password123`.
+
+### 3. Run the web client
+
+In another terminal:
 
 ```bash
 cd front
-npm install
-npm run dev         # http://localhost:3000
+npm ci
+npm run dev
 ```
 
-### 4. Optional: OAuth setup
+Open <http://localhost:3000>.
 
-To enable Google and GitHub sign-in, create OAuth apps and add the credentials to
-`back/appsettings.json`:
+### 4. Build the Chrome extension (optional)
 
-| Provider | Console | Callback URL |
-|----------|---------|--------------|
-| Google | [console.cloud.google.com](https://console.cloud.google.com) → APIs & Services → Credentials | `http://localhost:3000/api/auth/callback/google` |
-| GitHub | github.com → Settings → Developer settings → OAuth Apps | `http://localhost:3000/api/auth/callback/github` |
+```bash
+cd extension
+npm ci
+npm run build
+```
+
+In `chrome://extensions`, enable Developer mode and load `extension/dist` as an unpacked
+extension. Add its generated origin to `App:ExtensionOrigins` in the backend configuration,
+for example:
 
 ```json
-"OAuth": {
-  "Google": { "ClientId": "...", "ClientSecret": "..." },
-  "GitHub": { "ClientId": "...", "ClientSecret": "..." }
+{
+  "App": {
+    "ExtensionOrigins": ["chrome-extension://<extension-id>"]
+  }
 }
 ```
 
-### Stopping
+Restart the API after changing the setting. In the web app, visit `/settings/tokens` to
+create a capture token, then connect the extension to `http://localhost:3006/`.
 
-`Ctrl+C` each process, then:
+## OAuth setup (optional)
+
+Create OAuth applications and configure `OAuth:Google` and/or `OAuth:GitHub` in the
+backend configuration. For local development, use these callback URLs:
+
+| Provider | Callback URL |
+| --- | --- |
+| Google | `http://localhost:3000/api/auth/callback/google` |
+| GitHub | `http://localhost:3000/api/auth/callback/github` |
+
+Keep client secrets outside source control. ASP.NET Core environment-variable overrides
+use double underscores, such as `OAuth__Google__ClientSecret`.
+
+## Development checks
+
+Run backend checks from the repository root:
+
+```bash
+dotnet test Vocabify.Tests/Vocabify.Tests.csproj
+```
+
+Run frontend checks from `front/`:
+
+```bash
+npm test
+npx tsc --noEmit
+npm run lint
+npm run build
+```
+
+Run extension checks from `extension/`:
+
+```bash
+npm test
+```
+
+## API overview
+
+| Area | Routes | Authentication |
+| --- | --- | --- |
+| Accounts | `POST /api/users`, `/api/auth/*` | Public or `auth` cookie, depending on route |
+| Lists and words | `/api/lists/*` | Public reads; cookie for mutations |
+| Study | `/api/study/due`, `/api/study/review` | `auth` cookie |
+| Capture tokens | `/api/auth/tokens/*` | `auth` cookie |
+| Extension sync | `/api/sync/push`, `/api/sync/pull` | Bearer token with `capture` scope |
+
+Capture tokens expire after 90 days and are displayed only once when created. They can
+access the current user, public lists, owned-list word capture, and extension sync; they
+do not replace the cookie for normal web-app mutations.
+
+## Repository layout
+
+```text
+.
+|-- back/
+|   |-- Controllers/       HTTP endpoints
+|   |-- Services/          business logic, caching, auth, sync, and scheduling
+|   |-- DTOs/              request and response contracts
+|   |-- Data/              EF Core context and design-time setup
+|   |-- Models/            persistence entities
+|   `-- Migrations/        committed EF Core migrations
+|-- front/
+|   `-- src/
+|       |-- app/           App Router pages
+|       |-- components/    reusable UI
+|       |-- services/      API clients
+|       `-- test/          Vitest and Testing Library tests
+|-- extension/
+|   |-- src/               popup, capture, auth, IndexedDB, and sync code
+|   `-- test/              Node tests
+`-- Vocabify.Tests/        backend tests
+```
+
+## Common operations
+
+Stop local infrastructure while preserving PostgreSQL data:
 
 ```bash
 cd back
-docker compose down        # stop containers, keep data
-docker compose down -v     # stop containers and wipe all data
+docker compose down
 ```
 
-### PostgreSQL password authentication errors
+To permanently delete the local database volume and start over:
 
-If the API or `dotnet ef` reports `28P01: password authentication failed for user
-"vocabify"`, the credentials stored in the existing Docker volume may not match the
-current connection string. PostgreSQL applies `POSTGRES_USER` and `POSTGRES_PASSWORD`
-only when it initializes an empty data directory; restarting or recreating the container
-does not update the password in an existing `pgdata` volume.
+```bash
+cd back
+docker compose down -v
+docker compose up -d
+dotnet ef database update
+```
 
-To keep the existing data, reset the role password to the development value configured in
-`back/docker-compose.yml`:
+If PostgreSQL reports error `28P01` after credentials change, the existing Docker volume
+still contains the old role password. Either recreate the disposable volume as above or
+reset the role to the development password:
 
 ```bash
 docker exec vocabify-postgres psql -U vocabify -d vocabify -c "ALTER USER vocabify WITH PASSWORD 'vocabify';"
 ```
 
-If the local database is disposable, recreate it from the current Compose configuration:
+## More documentation
 
-```bash
-cd back
-docker compose down -v     # permanently deletes the local PostgreSQL data
-docker compose up -d
-dotnet ef database update
-```
+- [`back/README.md`](./back/README.md) — backend configuration, data model, and endpoint details
+- [`front/README.md`](./front/README.md) — frontend routes, structure, and commands
+- [`extension/README.md`](./extension/README.md) — extension installation and capture workflow
 
-## Features
+## License
 
-- **Accounts** — register with username, display name, optional email, and password; or sign
-  in via Google or GitHub.
-- **Cookie sessions** — auth is carried by an HttpOnly cookie (7-day JWT); no tokens in
-  localStorage.
-- **Password reset** — request a reset link by email; links expire after 1 hour.
-- **Vocabulary lists** — create, edit, and delete lists you own; browse all lists with
-  client-side search by name, author, or description.
-- **Words** — add up to 100 words (term + optional definition) per batch; edit or delete
-  individual words inline.
-- **Spaced repetition** — SM-2 algorithm tracks ease, interval, and due date per user–word
-  pair. Study sessions show four grade buttons (Again / Hard / Good / Easy) after revealing
-  a definition; each grade adjusts the next review interval. A timezone-aware endpoint
-  returns words due today, including never-reviewed words.
-- **Access control** — mutations require ownership; read access is public.
-
-## API surface
-
-### Auth (`/api/auth`)
-
-| Method | Route | Auth | Description |
-|--------|-------|------|-------------|
-| `POST` | `/api/auth/login` | No | Username + password login; sets `auth` cookie |
-| `POST` | `/api/auth/logout` | No | Clears the `auth` cookie |
-| `GET` | `/api/auth/me` | Cookie | Returns current user (`{username, name}`) |
-| `GET` | `/api/auth/oauth/google` | No | Returns Google OAuth URL |
-| `GET` | `/api/auth/callback/google` | No | Google OAuth callback; sets cookie, redirects to `/home` |
-| `GET` | `/api/auth/oauth/github` | No | Returns GitHub OAuth URL |
-| `GET` | `/api/auth/callback/github` | No | GitHub OAuth callback; sets cookie, redirects to `/home` |
-| `POST` | `/api/auth/forgot-password` | No | Sends reset email (always 200 to prevent enumeration) |
-| `POST` | `/api/auth/reset-password` | No | Verifies token and updates password |
-
-### Users (`/api/users`)
-
-| Method | Route | Auth | Description |
-|--------|-------|------|-------------|
-| `POST` | `/api/users` | No | Register an account |
-| `GET` | `/api/users` | No | List all users |
-
-### Lists (`/api/lists`)
-
-| Method | Route | Auth | Description |
-|--------|-------|------|-------------|
-| `GET` | `/api/lists` | No | All lists, newest first |
-| `GET` | `/api/lists/{id}` | No | Single list |
-| `POST` | `/api/lists` | Cookie | Create a list |
-| `PUT` | `/api/lists/{id}` | Cookie | Edit name/description (owner only) |
-| `DELETE` | `/api/lists/{id}` | Cookie | Delete list (owner only) |
-| `POST` | `/api/lists/{id}/words` | Cookie | Add 1–100 words (owner only) |
-| `PUT` | `/api/lists/{id}/words/{wordId}` | Cookie | Edit a word (owner only) |
-| `DELETE` | `/api/lists/{id}/words/{wordId}` | Cookie | Delete a word (owner only) |
-
-### Study (`/api/study`)
-
-| Method | Route | Auth | Description |
-|--------|-------|------|-------------|
-| `GET` | `/api/study/due?tz={iana}` | Cookie | Words due for review today (includes never-reviewed) |
-| `POST` | `/api/study/review` | Cookie | Submit grade (0-3); returns updated review state |
-
-Protected endpoints read auth from the `auth` HttpOnly cookie set at login.
-
-## Further reading
-
-- [`back/README.md`](./back/README.md) — API details, data models, configuration reference.
-- [`front/README.md`](./front/README.md) — client structure, routes, commands.
+See [`LICENSE`](./LICENSE).

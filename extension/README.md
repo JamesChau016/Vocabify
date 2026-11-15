@@ -1,41 +1,135 @@
-# Vocabify Capture extension
+# Vocabify Capture
 
-This folder contains a standalone Chrome Manifest V3 extension. The TypeScript auth
-module in `src/auth.ts` connects with a Vocabify capture token, validates it with
-`GET /api/auth/me`, stores it in extension-local storage, and uses it to add words to
-a list owned by the user. Captures are committed to IndexedDB first, then synchronized
-by the background worker when the API is reachable.
+Chrome Manifest V3 extension for saving vocabulary from any web page to a Vocabify list.
+Captures are written to IndexedDB first and synchronized with the API when connectivity is
+available.
 
-Create and revoke tokens from the signed-in Vocabify app at `/settings/tokens`. The
-extension links to that page because token management requires the app's cookie
-session. Tokens are shown once when created and expire after 90 days.
+## Capabilities
 
-For local development, use API URL `http://localhost:3006/` and app URL
-`http://localhost:3000/`. For a deployed instance, enter its API and app base URLs in
-the popup. The API must include the extension origin in `App:ExtensionOrigins`, for
-example `chrome-extension://<extension-id>`.
+- Prefill a word from the current text selection
+- Preserve its surrounding sentence and source URL
+- Suggest English words and retrieve editable dictionary definitions
+- Cache the user's destination lists
+- Queue captures while offline and retry them in the background
+- Push idempotent local operations and pull server-side changes by cursor
+- Connect with a scoped, revocable Vocabify capture token
+
+Dictionary lookup is optional. A word can be saved with a custom definition or without a
+definition when the public dictionary services are unavailable.
 
 ## Build and install
 
-Install the module's TypeScript compiler and build from `extension/`:
+Requirements: Node.js 18 or newer, Chrome or another Chromium browser, and a running
+Vocabify deployment.
 
-```sh
+From `extension/`:
+
+```bash
 npm ci
 npm run build
 ```
 
-The build writes the loadable extension to `dist/`.
-In Chrome, open `chrome://extensions`, enable Developer mode, and choose **Load
-unpacked** with the `dist/` directory. Add the extension ID shown there to the API's
-`App:ExtensionOrigins` setting and reload the extension.
+The build compiles TypeScript and writes a complete unpacked extension to `dist/`.
 
-Capture tokens can add words only to lists owned by their user. Open the popup from
-a page to prefill the selected word, its surrounding sentence, and the source URL.
-Choose a cached destination list and save; pending captures retry automatically after
-an offline period.
+1. Open `chrome://extensions`.
+2. Enable Developer mode.
+3. Select **Load unpacked** and choose `extension/dist`.
+4. Copy the generated extension ID.
+5. Add `chrome-extension://<extension-id>` to the API's `App:ExtensionOrigins` setting.
+6. Restart the API and reload the extension.
 
-While online, typing at least two characters in the word field shows up to eight
-suggestions. Selecting one fills the first English dictionary definition, which you
-can edit before saving. Leaving the word field with no definition also attempts a
-lookup. Dictionary access is optional for capture: when offline or no match exists,
-enter a definition manually or save the word without one.
+The build deletes and recreates `dist/`; do not edit generated files there.
+
+## Connect to Vocabify
+
+1. Sign in to the web application.
+2. Open `/settings/tokens` and create a capture token.
+3. Copy the token immediately; its secret is displayed only once.
+4. Open the extension popup and enter the token, API URL, and app URL.
+
+For local development use:
+
+```text
+API URL: http://localhost:3006/
+App URL: http://localhost:3000/
+```
+
+The extension validates the token with `GET /api/auth/me`. Tokens expire after 90 days
+and can be revoked from `/settings/tokens`. A capture token can add or synchronize words
+only in lists owned by its user.
+
+## Capture workflow
+
+Select a word on a page and open the extension. The popup attempts to prefill the selected
+word, its sentence, and the page URL. Choose a cached list, adjust the fields, and save.
+
+The local write succeeds independently of the network. The background service worker
+later calls:
+
+| Route | Purpose |
+| --- | --- |
+| `POST /api/sync/push` | Upload queued operations with stable IDs |
+| `GET /api/sync/pull?cursor=...` | Download changes since the last cursor |
+| `GET /api/lists` | Refresh available destination lists |
+
+Server receipts make retries idempotent, so a network interruption does not create
+duplicate words.
+
+## Permissions
+
+The manifest requests:
+
+| Permission | Reason |
+| --- | --- |
+| `storage` | Save connection settings and lightweight extension state |
+| `alarms` | Schedule background synchronization retries |
+| `activeTab` and `scripting` | Read the current selection and page context after user action |
+| Dictionary host access | Query Datamuse and Dictionary API |
+| Optional HTTP/HTTPS host access | Connect to the Vocabify API chosen by the user |
+
+The extension does not use the web application's HttpOnly cookie. It sends the capture
+token as a Bearer credential only to the configured API base URL.
+
+## Source layout
+
+```text
+extension/
+|-- manifest.json       Manifest V3 declaration
+|-- build.mjs           TypeScript build and static-file copy
+|-- src/
+|   |-- popup.*         popup UI and orchestration
+|   |-- background.ts   alarms and background synchronization
+|   |-- auth.ts         connection settings and authenticated requests
+|   |-- db.ts           IndexedDB persistence
+|   |-- sync.ts         push, pull, and list refresh
+|   |-- dictionary.ts   suggestions and definitions
+|   |-- normalize.ts    capture normalization
+|   `-- uuid.ts         stable local identifiers
+`-- test/               Node tests for persistence and dictionary behavior
+```
+
+## Tests
+
+```bash
+npm test
+```
+
+The test command rebuilds the extension, then runs the Node test suite. IndexedDB behavior
+uses `fake-indexeddb`, so Chrome is not required for automated tests.
+
+For a build-only check:
+
+```bash
+npm run build
+```
+
+## Troubleshooting
+
+- **Connection fails:** confirm the API URL includes the correct scheme and port, the
+  token is active, and the API is running.
+- **CORS error:** add the exact generated extension origin to `App:ExtensionOrigins`, then
+  restart the API.
+- **No lists appear:** the connected account must own at least one destination list;
+  reconnect or retry after the API is reachable.
+- **Capture remains pending:** keep the extension installed and verify network access to
+  the configured API. Background retries resume automatically.

@@ -1,98 +1,114 @@
-# Vocabify — Web Client
+# Vocabify web client
 
-Next.js 15 frontend for the Vocabify vocabulary list manager.
+Next.js 15 App Router client for browsing vocabulary lists, managing owned content,
+studying due words, and creating extension capture tokens.
 
-## Prerequisites
+## Local setup
 
-- Node.js 18+
-- Backend API running at `http://localhost:3006` (see [`../back/README.md`](../back/README.md))
+Requirements: Node.js 18 or newer and the Vocabify API running at
+<http://localhost:3006>.
 
-The dev server starts without the backend, but any page that calls the API will fail until
-it's running.
+From `front/`:
+
+```bash
+npm ci
+npm run dev
+```
+
+Open <http://localhost:3000>. The client can start without the backend, but pages that
+load data will fail until the API and its dependencies are available.
 
 ## Commands
 
-```bash
-npm install           # install dependencies
-npm run dev           # development server → http://localhost:3000
-npm run build         # production build
-npm run start         # serve production build → http://localhost:3000
-npm run lint          # ESLint
-npm test              # Vitest (single run)
-npm run test:watch    # Vitest in watch mode
-```
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the development server on port 3000 |
+| `npm run build` | Create a production build |
+| `npm run start` | Serve the production build |
+| `npm run lint` | Run ESLint |
+| `npx tsc --noEmit` | Type-check without emitting files |
+| `npm test` | Run Vitest once |
+| `npm run test:watch` | Run Vitest in watch mode |
 
-`/api/*` requests are proxied to `http://localhost:3006` by Next.js rewrites
-(`next.config.ts`). The browser never talks directly to port 3006.
+## API and authentication
 
-## Auth model
+`next.config.ts` rewrites `/api/*` to `http://localhost:3006/api/*`, so normal browser
+requests remain same-origin. Update the rewrite target when using a different backend.
 
-Sessions use an **HttpOnly cookie** (`auth`) set by the backend at login — there are no
-tokens in `localStorage`. `axios.defaults.withCredentials = true` is set globally in
-`AuthContext.tsx` so every axios call includes the cookie automatically.
+The API stores the session JWT in an HttpOnly `auth` cookie. The client never reads or
+persists that JWT. `AuthContext` enables credentials for Axios, restores the session with
+`GET /api/auth/me`, and exposes registration, login, and logout state to components.
 
-On mount, `AuthContext` calls `GET /api/auth/me` to restore the session. If the cookie is
-absent or expired the user is treated as a guest.
-
-## File Structure
-
-```
-front/
-├── next.config.ts               # API proxy rewrites (/api/* → localhost:3006)
-├── vitest.config.mts            # Test runner config
-├── vitest.setup.ts              # Shared test setup
-└── src/
-    ├── types.ts                 # User, List, Word, DueWord, ReviewState, Grade, Credential, RegisterCredential
-    ├── context/
-    │   └── AuthContext.tsx      # Auth provider (currentUser, login, logout, register)
-    │                            # also sets axios.defaults.withCredentials = true
-    ├── services/
-    │   ├── auth.ts              # login, logout, me, getOAuthUrl, forgotPassword, resetPassword
-    │   ├── list.ts              # GET/POST/PUT/DELETE /api/lists + word edit/delete
-    │   ├── study.ts             # GET /api/study/due, POST /api/study/review
-    │   └── user.ts              # POST /api/users (register)
-    ├── components/
-    │   ├── Header.tsx           # Nav bar (auth-aware)
-    │   ├── ListForm.tsx         # Create new list
-    │   ├── RegisterForm.tsx     # Registration form (username, name, email, password)
-    │   ├── AddWordsForm.tsx     # Owner: add 1–100 words with client validation
-    │   ├── EditListForm.tsx     # Owner: edit list name/description inline
-    │   ├── DeleteListControl.tsx# Owner: delete list (two-step confirm)
-    │   └── StudySession.tsx     # Spaced-repetition study (reveal → grade → next word)
-    └── app/
-        ├── layout.tsx           # Root layout (AuthProvider)
-        ├── page.tsx             # Landing (/)
-        ├── login/
-        │   └── page.tsx         # Sign-in form + Google/GitHub OAuth buttons + forgot-password link
-        ├── register/
-        │   └── page.tsx         # Registration page
-        ├── forgot-password/
-        │   └── page.tsx         # Request a password-reset email
-        ├── reset-password/
-        │   └── page.tsx         # Set new password (reads ?id=&token= from URL)
-        └── home/
-            ├── page.tsx         # Dashboard: all lists, search, create form
-            └── lists/
-                └── [id]/
-                    └── page.tsx # List detail: metadata, words (inline edit/delete for owner),
-                                 # add words, edit list, delete list, study session
-```
+Capture tokens are different from the web session. Signed-in users manage them at
+`/settings/tokens`; a newly created secret is shown only once and is intended for the
+Chrome extension.
 
 ## Routes
 
 | Route | Description |
-|-------|-------------|
+| --- | --- |
 | `/` | Landing page |
-| `/login` | Username/password sign-in + Google/GitHub OAuth |
-| `/register` | Account creation |
-| `/forgot-password` | Request a password-reset link by email |
-| `/reset-password` | Set a new password via reset link |
-| `/home` | All lists with search/filter |
-| `/home/lists/:id` | List detail — words, study, owner controls |
+| `/login` | Password sign-in and Google/GitHub OAuth |
+| `/register` | Account registration |
+| `/forgot-password` | Request a password-reset email |
+| `/reset-password?id=...&token=...` | Set a new password from a reset link |
+| `/home` | Browse and search lists; create a list when signed in |
+| `/home/lists/:id` | View words, study, and use owner controls |
+| `/settings/tokens` | Create, inspect, copy, and revoke capture tokens |
+
+List details support inline word editing, including definition, source sentence, and
+source URL. Word entry can use dictionary suggestions and definitions from public APIs.
+
+## Source layout
+
+```text
+front/
+|-- next.config.ts          API proxy rewrite
+|-- vitest.config.mts       Vitest configuration
+|-- vitest.setup.ts         shared DOM test setup
+`-- src/
+    |-- app/                App Router pages and route styles
+    |-- components/         forms, navigation, owner controls, and study UI
+    |-- context/
+    |   `-- AuthContext.tsx session restoration and auth actions
+    |-- services/           typed API and dictionary calls
+    |-- test/               Vitest and Testing Library tests
+    `-- types.ts            shared client models
+```
+
+API requests belong in `src/services/`. Reusable UI belongs in `src/components/`. Use a
+client component only when it needs state, effects, event handlers, or browser APIs.
+
+## Main client modules
+
+| Module | Responsibility |
+| --- | --- |
+| `services/auth.ts` | Session, OAuth, and password-reset requests |
+| `services/user.ts` | Registration and user requests |
+| `services/list.ts` | List and word CRUD |
+| `services/study.ts` | Due words and review submission |
+| `services/apiTokens.ts` | Capture-token lifecycle |
+| `services/dictionary.ts` | Suggestions and English definitions |
+| `components/StudySession.tsx` | Reveal-and-grade spaced-repetition flow |
 
 ## Testing
 
+Run the same checks expected before submission:
+
 ```bash
-npm test              # single run
-npm run test:watch    # watch mode
+npm test
+npx tsc --noEmit
+npm run lint
+npm run build
 ```
+
+Tests use Vitest, jsdom, Testing Library, and targeted property checks with fast-check.
+Name new tests `*.test.ts` or `*.test.tsx` and keep them in `src/test/`.
+
+## Production notes
+
+- Point the Next.js rewrite at the deployed API.
+- Set the backend `App:PublicUrl` to the public web origin so OAuth callbacks, password
+  reset links, and CORS all agree.
+- Serve the web client and API over HTTPS so the authentication cookie remains protected.
+- Configure real OAuth and SMTP credentials outside source control.
