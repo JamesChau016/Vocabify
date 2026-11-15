@@ -84,6 +84,19 @@ public class SyncServiceTests
         Assert.Equal(2, context.SyncOperationReceipts.Count());
     }
 
+    [Fact]
+    public async Task Saving_normalizes_term_case_unicode_and_whitespace()
+    {
+        using var database = new TestDatabase();
+        var (userId, listId) = Seed(database);
+
+        await Push(database, userId, CreateOperation(
+            listId, Guid.NewGuid(), DateTimeOffset.UtcNow, "  ＣＡＦÉ\t  AU   LAIT  "));
+
+        using var context = database.CreateContext();
+        Assert.Equal("café au lait", context.Words.Single().Term);
+    }
+
     private static async Task<SyncPushResponse> Push(TestDatabase database, Guid userId, SyncOperationRequest operation)
     {
         using var context = database.CreateContext();

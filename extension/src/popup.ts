@@ -14,6 +14,7 @@ import {
 import { clearLocalData, enqueueCapture, getCachedLists, type CachedList } from "./db.js";
 import { refreshOwnedLists, syncNow } from "./sync.js";
 import { uuidv7 } from "./uuid.js";
+import { normalizeTerm } from "./normalize.js";
 
 const connectView = element<HTMLElement>("connect-view");
 const captureView = element<HTMLElement>("capture-view");
@@ -36,9 +37,17 @@ function element<T extends HTMLElement>(id: string): T {
   return found as T;
 }
 
-function setStatus(message: string, isError = false): void {
+type StatusKind = "info" | "success" | "warning" | "error";
+
+function setStatus(message: string, kind: StatusKind = "info", reveal = false): void {
   status.textContent = message;
-  status.dataset.error = String(isError);
+  status.dataset.kind = kind;
+  status.hidden = message.length === 0;
+  status.setAttribute("role", kind === "error" ? "alert" : "status");
+  status.setAttribute("aria-live", kind === "error" ? "assertive" : "polite");
+  if (reveal) {
+    requestAnimationFrame(() => status.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }
 }
 
 function updateManageLink(): void {
@@ -83,9 +92,9 @@ async function connect(): Promise<void> {
     tokenInput.value = "";
     showCapture(user, settings);
     await populateLists(await refreshOwnedLists());
-    setStatus("Connected.");
+    setStatus("Connected. Your lists are ready.", "success", true);
   } catch (error) {
-    setStatus(errorMessage(error, "Could not connect."), true);
+    setStatus(errorMessage(error, "Could not connect."), "error", true);
   } finally {
     button.disabled = false;
   }
@@ -95,16 +104,18 @@ async function disconnectFromPopup(): Promise<void> {
   await disconnect();
   await clearLocalData();
   showConnect();
-  setStatus("Disconnected.");
+  setStatus("Disconnected.", "success", true);
 }
 
 async function saveWord(): Promise<void> {
   const button = element<HTMLButtonElement>("save-word");
   button.disabled = true;
-  setStatus("Saving word…");
+  setStatus("Saving word…", "info");
   try {
     const listId = element<HTMLSelectElement>("list-id").value;
-    const term = element<HTMLInputElement>("term").value.trim();
+    const termInput = element<HTMLInputElement>("term");
+    const term = normalizeTerm(termInput.value);
+    termInput.value = term;
     const definition = element<HTMLTextAreaElement>("definition").value.trim();
     const sentence = element<HTMLTextAreaElement>("sentence").value.trim();
     const sourceUrl = element<HTMLInputElement>("source-url").value.trim();
@@ -122,7 +133,7 @@ async function saveWord(): Promise<void> {
       fields: { term, definition: definition || null, sentence: sentence || null, sourceUrl: sourceUrl || null },
     }, { id: wordId, listId, term, definition: definition || null, sentence: sentence || null, sourceUrl: sourceUrl || null, deleted: false });
     if (!queued) {
-      setStatus("This capture is already saved to that list.");
+      setStatus("Already saved. This word and source are in that list.", "warning", true);
       void syncNow().catch(() => undefined);
       return;
     }
@@ -131,12 +142,12 @@ async function saveWord(): Promise<void> {
     element<HTMLTextAreaElement>("sentence").value = "";
     try {
       await syncNow();
-      setStatus("Word saved and synced.");
+      setStatus("Saved and synced. The word is ready on Vocabify.", "success", true);
     } catch {
-      setStatus("Word saved offline. It will sync automatically.");
+      setStatus("Saved offline. It will sync automatically when the connection returns.", "warning", true);
     }
   } catch (error) {
-    setStatus(errorMessage(error, "Could not save word."), true);
+    setStatus(errorMessage(error, "Could not save word."), "error", true);
   } finally {
     button.disabled = false;
   }
@@ -162,9 +173,9 @@ async function initialize(): Promise<void> {
     if (error instanceof ApiRequestError && error.status === 401) {
       await clearLocalData();
       showConnect();
-      setStatus("Reconnect with an active token.", true);
+      setStatus("Reconnect with an active token.", "error", true);
     } else {
-      setStatus("Offline capture is ready. Pending words will sync automatically.");
+      setStatus("Offline capture is ready. Pending words will sync automatically.", "warning");
     }
   }
 }

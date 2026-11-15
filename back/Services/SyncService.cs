@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Vocabify.Data;
 using Vocabify.DTOs;
@@ -87,7 +89,7 @@ public class SyncService(AppDbContext db)
                 else
                 {
                     changed |= ApplyString(fields, "term", operation, word.TermUpdatedAt, word.TermOperationId,
-                        value => word.Term = value ?? string.Empty,
+                        value => word.Term = NormalizeTerm(value ?? string.Empty),
                         () => { word.TermUpdatedAt = operation.EditedAt; word.TermOperationId = operation.OperationId; });
                     changed |= ApplyString(fields, "definition", operation, word.DefinitionUpdatedAt, word.DefinitionOperationId,
                         value => word.Definition = value,
@@ -181,6 +183,10 @@ public class SyncService(AppDbContext db)
             (!Uri.TryCreate(word.SourceUrl, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)))
             throw new SyncValidationException("Source URL must be an absolute HTTP or HTTPS URL.");
     }
+
+    private static string NormalizeTerm(string value) =>
+        Regex.Replace(value.Normalize(NormalizationForm.FormKC).Trim(), @"\s+", " ")
+            .ToLowerInvariant();
 }
 
 public class SyncValidationException(string message) : Exception(message);

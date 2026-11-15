@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { applySync, clearLocalData, enqueueCapture, pendingOperations } from "../dist/db.js";
 import { uuidv7 } from "../dist/uuid.js";
+import { normalizeTerm } from "../dist/normalize.js";
 
 afterEach(async () => { await clearLocalData(); });
 
@@ -32,6 +33,10 @@ test("persists offline captures until the server acknowledges them", async () =>
 
 test("generates UUIDv7 identifiers", () => {
   assert.match(uuidv7(), /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+});
+
+test("normalizes Unicode, case, and whitespace before saving", () => {
+  assert.equal(normalizeTerm("  ＣＡＦÉ\t  AU   LAIT  "), "café au lait");
 });
 
 test("repeated capture of the same page selection queues one word", async () => {

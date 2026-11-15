@@ -1,3 +1,5 @@
+import { normalizeTerm } from "./normalize.js";
+
 export interface LocalWord {
   id: string;
   listId: string;
@@ -62,7 +64,7 @@ export async function enqueueCapture(operation: PendingOperation, word: LocalWor
     const existing = await result(tx.objectStore("words").getAll() as IDBRequest<LocalWord[]>);
     if (existing.some(saved => !saved.deleted &&
       saved.listId === word.listId &&
-      saved.term.trim().toLocaleLowerCase() === word.term.trim().toLocaleLowerCase() &&
+      normalizeTerm(saved.term) === normalizeTerm(word.term) &&
       saved.sentence === word.sentence &&
       saved.sourceUrl === word.sourceUrl)) return false;
     tx.objectStore("words").put(word);
